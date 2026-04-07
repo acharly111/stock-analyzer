@@ -12,7 +12,6 @@ try:
     master_df = pd.read_csv("stocks_master.csv", encoding="latin1", engine="python")
     master_df.columns = master_df.columns.str.strip()
 
-    # Fix possible typo in header
     if "Industruy" in master_df.columns:
         master_df = master_df.rename(columns={"Industruy": "Industry"})
 
@@ -22,13 +21,27 @@ except Exception as e:
 
 st.subheader("Stock List")
 
+def clean_cell(x):
+    if pd.isna(x):
+        return ""
+    return html.escape(str(x)).replace("\n", "<br>")
+
+def format_catalyst(text):
+    if pd.isna(text):
+        return ""
+    text = str(text)
+    parts = text.split("\n", 1)
+
+    first_line = html.escape(parts[0])
+    rest = html.escape(parts[1]) if len(parts) > 1 else ""
+
+    if rest:
+        return f"<b>{first_line}</b><br>{rest.replace(chr(10), '<br>')}"
+    else:
+        return f"<b>{first_line}</b>"
+
 if not master_df.empty:
     stock_list_view = master_df[["Ticker", "Company", "Industry", "Catalyst"]].copy()
-
-    def clean_cell(x):
-        if pd.isna(x):
-            return ""
-        return html.escape(str(x)).replace("\n", "<br>")
 
     rows_html = ""
     for _, row in stock_list_view.iterrows():
@@ -37,7 +50,7 @@ if not master_df.empty:
             <td>{clean_cell(row['Ticker'])}</td>
             <td>{clean_cell(row['Company'])}</td>
             <td>{clean_cell(row['Industry'])}</td>
-            <td>{clean_cell(row['Catalyst'])}</td>
+            <td>{format_catalyst(row['Catalyst'])}</td>
         </tr>
         """
 
@@ -48,17 +61,17 @@ if not master_df.empty:
             width: 100%;
             border-collapse: collapse;
             table-layout: fixed;
-            font-size: 13px;
+            font-size: 12px;
         }}
 
         .stocks-table th, .stocks-table td {{
             border: 1px solid #ddd;
-            padding: 8px 10px;
+            padding: 6px 8px;
             vertical-align: top;
             text-align: left;
             word-wrap: break-word;
             white-space: normal;
-            line-height: 1.25;
+            line-height: 1.15;
         }}
 
         .stocks-table th {{
@@ -66,26 +79,24 @@ if not master_df.empty:
             font-weight: 600;
         }}
 
-        /* column widths */
         .stocks-table th:nth-child(1), .stocks-table td:nth-child(1) {{
-            width: 12%;
+            width: 16%;
         }}
 
         .stocks-table th:nth-child(2), .stocks-table td:nth-child(2) {{
-            width: 18%;
+            width: 16%;
         }}
 
         .stocks-table th:nth-child(3), .stocks-table td:nth-child(3) {{
-            width: 18%;
+            width: 16%;
         }}
 
         .stocks-table th:nth-child(4), .stocks-table td:nth-child(4) {{
             width: 52%;
         }}
 
-        /* taller rows */
         .stocks-table tbody tr {{
-            height: 52px;
+            height: 28px;
         }}
         </style>
 
