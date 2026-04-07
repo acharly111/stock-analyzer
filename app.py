@@ -9,7 +9,8 @@ st.title("Stock Analyzer")
 # ---------- First page: stock master table ----------
 try:
     master_df = pd.read_csv("stocks_master.csv")
-except Exception:
+except Exception as e:
+    st.error(f"Error loading CSV: {e}")
     master_df = pd.DataFrame(columns=["Ticker", "Company", "Industry", "Catalyst"])
 
 st.subheader("Stock List")
