@@ -1,0 +1,143 @@
+Ticker,Company,Industry,Catalyst
+DOCN,"DigitalOcean Holdings, Inc.","Technology
+Cloud Infrastructure","Cloud Infrastructure
+DigitalOcean provides cloud computing infrastructure and platform services tailored to developers, startups, and small-to-midsize businesses. Its offerings include compute, storage, networking, managed databases, and AI-related cloud services."
+OSS,"One Stop Systems, Inc.","Technology
+Computer Hardware","Drones & Autonomous Military Vehicles
+ One Stop Systems designs rugged high-performance computing, storage, and networking systems for edge AI, autonomy, and defense. Its hardware supports autonomous and defense-oriented unmanned platforms."
+ECG,"Everus Construction Group, Inc.","Industrials
+Engineering & Construction","Power Shortage for AI
+ Everus Construction Group provides electrical, mechanical, transmission, and distribution contracting services. Grid, transmission, and power-distribution buildouts are directly linked to the growing energy needs of AI infrastructure."
+FIX,Comfort Systems USA,"Industrials
+Engineering & Construction","Data center forAI 
+Comfort Systems  provides  contracting services, including installation, maintenance, repair for commercial, industrial, and institutional building markets.  link to AI  via demand for data centers, high-tech facilities, and smart buildings that need advanced mechanical and electrical infrastructure"
+BE,Bloom Energy ,Industrials energy storage,"Power Shortage for AI 
+Bloom Energy's solid-oxide fuel cell servers provide reliable, high-efficiency on-site power generation for data centers, directly addressing the surging power demand driven by AI infrastructure buildout."
+MITK,Mitek Systems,"Technology
+Software"," AI Fraud Protection / Identity 
+Mitek provides digital identity verification, biometric liveness, and fraud prevention software used by banks, fintechs, telecoms, and marketplaces. Its products directly address synthetic identity abuse, deepfake risk, and AI-driven fraud."
+AMKR,Amkor ,"Technology
+Semiconductors","AI Chips
+ Amkor provides advanced semiconductor packaging for AI chips including high-bandwidth memory (HBM) packaging and system-in-package (SiP) modules used in AI accelerators and data center GPUs. Directly serves fabless AI chipmakers and major foundries. part of moving chip making to America"
+TTMI,TTM ,"Technology
+Electronic Components","AI Chips 
+TTM Technologies manufactures printed circuit boards, radio frequency components, and electronics assemblies. Serves aerospace and defense, networking, data center, and industrial markets. TTM positions itself as a leading PCB supplier for AI, hyperscale servers, cloud, and high?end computing, explicitly marketing complex boards and backplanes for AI workloads"
+KTOS,Kratos ,"
+Aerospace & Defense","Drones & Autonomous Military Vehicles 
+Kratos Defense provides unmanned systems, propulsion, satellites, microwave electronics, and missile defense technologies. Its unmanned platforms and defense electronics directly fit the autonomous military vehicle theme."
+COHR,Coherent ,"Technology
+Communication Equipment","AI High speed networking
+ Coherent supplies optical transceivers, photonic components, and related materials used in high-speed AI data center interconnects. Its business is directly leveraged to the optical networking layer of the AI infrastructure buildout."
+EZPW,EZCORP,Financials,EZCORP operates pawn stores that provide collateralized consumer loans and sell pre-owned merchandise. The company has operations in the United States and Latin America.
+VRT,Vertiv ,"Industrials
+Electrical Equipment & Parts","AI cooling 
+Vertiv provides critical digital infrastructure including power systems and thermal management for data centers. Its products directly address the power and cooling bottlenecks created by AI data-center expansion."
+DELL,Dell ,"Technology
+Computer Hardware","AI Data centers 
+Dell Technologies sells AI-optimized servers, storage, networking, and IT infrastructure used in hyperscale and enterprise AI data centers. Its record AI server revenue and backlog tie the company directly to the AI hardware buildout."
+AMPX,Amprius ,"Industrials
+Electrical Equipment & Parts","Drones & Autonomous Military Vehicles 
+Amprius develops high-energy-density lithium-ion batteries targeted at aviation, defense, and drones. Its lightweight, high-performance cells are directly relevant to longer-range unmanned and autonomous platforms."
+BWXT,"BWX Technologies, ","Industrials
+Aerospace & Defense
+","Power Shortage for AI
+ BWX Technologies supplies nuclear components, fuel, and services for government and commercial customers. Nuclear power and related fuel-cycle infrastructure are increasingly relevant as AI data centers drive higher power demand."
+IDN,Intellicheck,"Technology
+Software","AI Fraud Protection / Identity
+ Intellicheck provides digital identity verification and fraud prevention software. Its solutions are directly relevant to preventing identity fraud and AI-enabled impersonation or document abuse."
+VIAV,Viavi Solutions ,"Technology
+Communication Equipment","AI elecrtonics
+Viavi  provides network test, measurement, optical security, and anti-counterfeiting solutions. Serves telecom, cloud, aerospace, government, and industrial customers.It is explicitly marketing test solutions for AI infrastructure development, manufacturing, and deployment, including lab systems that qualify optical components and connectivity for AI data center networks"
+TSM,Taiwan Semiconductor ,"Technology
+Semiconductor","AI Chips
+ TSMC manufactures leading-edge semiconductors for fabless chip companies. It is the core foundry partner for many of the world’s most important AI chip and accelerator designers."
+IPGP,IPG Photonics ,"Industrials
+Specialty Industrial Machinery","Drones & Autonomous Military Vehicles 
+IPG Photonics develops and manufactures high-power fiber lasers, amplifiers, and laser systems. Its products are used in industrial manufacturing, medical, scientific, communications, and defense applications."
+STRL,"Sterling Infrastructure, Inc.","Industrials
+Engineering & Construction","AI Infrastructure
+Sterling Infrastructure provides e-infrastructure, transportation, and building solutions. Its projects include data centers, highways, residential development, and civil construction.
+It  has been strategically pivoted toward “AI factories”: hyperscaler data centers and advanced manufacturing projects that require heavy power, cooling, and underground utilities"
+PLPC,Preformed Line Products Company,"Industrials
+Electrical Equipment & Parts","Power Shortage for AI
+Preformed Line Products supplies hardware used in electric transmission, distribution, and communications infrastructure. Grid upgrades and utility network expansion are relevant to the rising power demand driven by AI infrastructure."
+FN,Fabrinet,"Technology
+Electronics Manufacturing Services","AI  Electronics 
+Fabrinet provides advanced optical packaging, precision manufacturing, and complex product assembly services. Its optical and communications manufacturing capabilities support AI networking and high-speed data-center hardware."
+KEYS,"Keysight Technologies, Inc.","Technology
+Scientific & Technical Instruments","AI  Electronics 
+Keysight provides electronic design, test, measurement, and software solutions. Serves communications, aerospace and defense, automotive, semiconductor, and industrial customers.
+It is one of the core test/emulation “arms dealers” to the AI  data?center, and 5G/6G ecosystem, not an AI model vendor but critical infrastructure for getting AI hardware and networks to work at scale"
+SEI,"Solaris Energy Infrastructure, Inc.","Energy
+Oil & Gas Equipment & Services","Power Shortage for AI 
+Solaris Energy Infrastructure provides mobile power generation, control, and distribution equipment alongside logistics systems for oilfield and infrastructure customers. Operates Solaris Power Solutions and Solaris Logistics Solutions businesses. It now also supplying large?scale power?generation equipment for AI data centers"
+STX,Seagate Technology Holdings plc,"Technology
+Computer Hardware ","
+AI memory sortage
+Seagate designs and manufactures data storage solutions for enterprise and cloud environments. Large-scale AI workloads and data-center buildouts increase demand for high-capacity storage infrastructure."
+EME,"EMCOR Group, Inc.",Industrials,"AI Infrastructure 
+EMCOR Group provides mechanical and electrical construction, industrial services, facilities services, and building maintenance. Serves commercial, institutional, industrial, utility, and network infrastructure customers. EMCOR is heavily involved in data?center projects that require high?density power, advanced cooling, and complex systems"
+FLS,Flowserve Corporation,"Industrials
+Specialty Industrial Machinery","AI Infrastructure
+Flowserve manufactures pumps, valves, seals, automation, and flow-control systems. Serves energy, chemical, water, power, and general industrial customers worldwide. Tt is a core fluid?handling and cooling picks?and?shovels name that participates in the AI build?out mainly via pumps/valves for data?center and high?density compute cooling"
+RKLB,"Rocket Lab USA, Inc.","Industrials
+Aerospace & Defense","Space
+Rocket Lab provides launch services and space systems solutions for the space and defense industries. Manufactures the Electron small orbital launch vehicle and Photon satellite platforms, developing the Neutron medium-class rocket. Offers spacecraft engineering, manufacturing, constellation management, and on-orbit services to commercial and government customers."
+GEV,GE Vernova Inc.,Industrials,"Power Shortage for AI 
+GE Vernova provides power generation, wind, electrification, grid, and energy software solutions. Its technologies support utility and grid upgrades needed to meet rising electricity demand from AI infrastructure."
+NBIS,Nebius Group N.V.,"Technology
+Data centers","AI data centers 
+Nebius Group builds GPU cloud infrastructure and AI development platforms for AI developers and enterprises. Its business is directly tied to AI compute infrastructure and datacenter build-out."
+RRX,Regal Rexnord ,"Industrials
+Specialty Industrial Machinery","AI Infrastructure
+Regal Rexnord manufactures motion control, power transmission, and automation solutions. Its products serve industrial equipment, HVAC, aerospace, food, and other end markets. It is evolving into an AI?adjacent motion, power, and cooling infrastructure supplier, with growing exposure to data?center cooling, power pods, and industrial automation that support AI and cloud build?outs"
+AAOI,Applied Optoelectronics,"Technology
+Communication Equipment","AI High speed networking
+ Applied Optoelectronics designs optical networking products, lasers, and transceivers for data centers and broadband access. Its high-speed optical interconnects are directly tied to AI data-center networking buildouts."
+ANET,"Arista Networks, Inc.",Technology,"AI High speed networking
+Arista's high-speed Ethernet switching platforms (400G/800G) are the core networking fabric inside hyperscale AI data centers. Key customers include Microsoft, Meta, and major cloud providers building out AI training clusters."
+HASI,"HA Sustainable Infrastructure Capital, Inc.",Financials,"Power Shortage for AI
+HA Sustainable Infrastructure Capital finances climate-positive infrastructure including renewable energy, storage, and grid-related projects. These assets can help support the power buildout required for AI-driven electricity demand."
+ITT,ITT Inc.,Industrials,"Industrial
+ITT manufactures engineered components and systems for transportation, industrial process, and connectivity markets. Its products include brake pads, pumps, valves, connectors, and control technologies."
+AEM,Agnico Eagle Mines Limited,"Basic Materials
+Gold","Gold and rare earth
+Agnico Eagle Mines explores for, develops, and produces gold and other precious metals. Operates mines and development projects across Canada, Australia, Finland, and Mexico."
+NET,"Cloudflare, Inc.","Technology
+Software","Cloud and cyber
+Cloudflare provides edge cloud, content delivery, security, networking, and developer platform services. Cloudflare (NET) operates a global connectivity cloud that delivers security, networking, and edge?compute services for millions of internet applications"
+ENS,EnerSys,"Industrials
+Electrical Equipment & Parts"," Power Shortage for AI
+EnerSys manufactures large-scale battery energy storage systems (BESS) for grid stabilization and UPS systems for data centers and telecom infrastructure, directly supporting the energy reliability demands of AI-driven power load growth."
+PLAB,"Photronics, Inc.","Technology
+Semiconductor","AI Electronics
+Photronics manufactures photomasks used in semiconductor fabrication. As chip complexity rises and AI-related semiconductor designs increase, photomask demand is directly tied to the semiconductor layer enabling AI infrastructure."
+CLS,Celestica Inc.,Technology,"AI data centers 
+Celestica is a Canadian design, manufacturing, and hardware?platform company that builds complex electronic systems and rack?level platforms for OEMs and hyperscale cloud providers. It is tightly linked to the AI boom through its onnectivity & Cloud Solutions segment AI servers,  switches, liquid?cooled racks, and full AI fabrics with hyperscalers."
+FLEX,Flex Ltd.,Technology,"AI electronics
+Flex provides design, engineering, manufacturing, supply chain, and lifecycle services. Serves cloud, communications, automotive, healthcare, industrial, and consumer markets. It is  linked to the AI revolution through a vertically integrated AI data?center platform that combines power, liquid?cooled racks, and compute into modular designs—developed with partners like NVIDIA"
+KRKNF,Kraken Robotics Inc.,Industrials," Drones & Autonomous Military Vehicles
+ Kraken Robotics develops robotic systems, subsea batteries, and sonar technologies used in defense and autonomous marine platforms. Its products are directly relevant to unmanned and autonomous military systems."
+AEHR,Aehr Test Systems,"Technology
+Semiconductor  Testing","AI elecrtonics
+Aehr Test Systems provides semiconductor test and burn-in systems used for wafer-level and packaged-device reliability screening. Its platforms are used for silicon carbide, power semiconductors, photonics, flash memory, and other semiconductor applications."
+ASTS,"AST SpaceMobile, Inc.",Communication Services,"Space
+AST SpaceMobile is building a space-based cellular broadband network designed to connect directly with standard mobile phones. Partners with mobile network operators to extend coverage using low-earth-orbit satellites."
+AMD,"Advanced Micro Devices, Inc.","Technology
+Semiconductors","AI Electronics
+AMD designs CPUs, GPUs, and data-center accelerators used in AI training and inference. Its Instinct accelerators and server processors are core compute hardware for hyperscale AI infrastructure."
+NVT,nVent Electric plc,Industrials,"Power Shortage for AI
+ nVent provides electrical connection, protection, thermal management, and enclosure solutions used in data centers and utilities. These products are directly relevant to power reliability and thermal control for AI infrastructure."
+ONDS,Ondas Holdings Inc.,"Industrials
+Aerospace & Defense"," Drones & Autonomous Military Vehicles
+Ondas’s drone business is built around the American Robotics and Airobotics subsidiaries. It develops fully autonomous “drone?in?a?box” systems that can launch, fly, land, and recharge without on?site pilots, providing continuous aerial monitoring and data collection for industrial and government customers. buys lots of companies from Israel"
+POWL,"Powell Industries, Inc.",Industrials,"Power Shortage for AI
+Powell Industries (POWL) designs and builds medium?voltage switchgear and modular electrical “E?Houses” that connect large facilities to the grid. As hyperscale AI data centers demand huge, reliable power, Powell’s gear is increasingly used as the electrical backbone for these AI campuses, driving strong backlog tied to AI?driven utility and data?center projects"
+MU,Micron Technology,Technology  Semiconductors,"AI memory sortage
+Micron is one of the world’s leading memory makers, producing DRAM, NAND, and especially high?bandwidth memory (HBM) used in AI accelerators and data?center GPUs. Its 2025 HBM supply is already sold out, and the company is ramping advanced HBM3E and next?gen HBM4 for top AI platforms, making AI?driven demand the primary growth engine "
+HWM,Howmet Aerospace Inc.,Industrials,"Aerospace and Defence
+Howmet Aerospace provides advanced engineered solutions for aerospace and transportation. Operates four segments: Engine Products (airfoils, rings for jet engines), Fastening Systems (aerospace fasteners), Engineered Structures (titanium/aluminum forgings), and Forged Wheels . Serves global aerospace, defense, and commercial transportation markets."
+MRVL,Marvell Technology,Information Technology / Semiconductors,"AI electronics
+Marvell designs data?infrastructure chips for accelerated computing, high?speed networking, and storage, with a growing focus on custom silicon and optical interconnects for AI data centers. AI data?center growth driving demand for its custom AI accelerators, networking and optical interconnect chips."
+FTI,TechnipFMC plc,Energy,"Power
+TechnipFMC provides subsea production systems, surface technologies, and offshore energy project services. The company serves oil and gas operators developing offshore and onshore resources."
