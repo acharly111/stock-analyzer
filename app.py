@@ -157,19 +157,23 @@ if run_button:
 
     st.success("Analysis complete")
 
+    # Summary table: Name, Risk_level, strong_vs_SPY, BUY/SELL
     summary_df = df[[
         "symbol",
-        "RSI_dist_%_from_RSI_MA_14",
-        "Price_dist_%_from_SMA_200",
+        "risk_level",
+        "Strong_vs_SPY",
         "BUY/SELL signal"
     ]].copy()
-    summary_df.columns = ["Name", "dist RSI", "dist 200SMA", "BUY/SELL"]
+    summary_df.columns = ["Name", "Risk_level", "strong_vs_SPY", "BUY/SELL"]
 
     st.subheader("Summary")
     st.dataframe(summary_df, use_container_width=True, hide_index=True)
 
+    # Full table without Risk_level and Strong_vs_SPY
+    full_df = df.drop(columns=["risk_level", "Strong_vs_SPY"], errors="ignore")
+
     with st.expander("Show full analysis table"):
-        st.dataframe(df, use_container_width=True, hide_index=True)
+        st.dataframe(full_df, use_container_width=True, hide_index=True)
 
     csv_data = df.to_csv(index=False).encode("utf-8")
     st.download_button(
