@@ -1,24 +1,36 @@
 import streamlit as st
+import pandas as pd
 from engine import build_output, save_outputs
 
 st.set_page_config(page_title="Stock Analyzer", layout="centered")
 
 st.title("Stock Analyzer")
 
-default_tickers = """DOCN,OSS,ECG,FIX,BE,MITK,AMKR,TTMI,KTOS,COHR,EZPW,VRT,
-DELL,AMPX,BWXT,IDN,VIAV,TSM,IPGP,STRL,PLPC,FN,KEYS,SEI,
-STX,EME,FLS,RKLB,GEV,NBIS,RRX,AAOI,ANET,HASI,ITT,AEM,
-NET,ENS,PLAB,SEZL,FTI,KRKNF,MSFT,GXO,KNSA,FLEX,HII,KRMN,
-SNOW,CRDO,DDOG,LITE,NVDA,PLTR,POWL,IBM,NOW,HLIO,SYNA,
-AEHR,ASTS,CXDO,NVT,UAMY,AMD,HLX,THR,ENB,VIST,ZETA,AVGO,
-DTM,CLS,SOFI,GMED,MP,NU,SHOP,BKTI,RDDT,MELI,SN,HWM,
-SPOT,META,NFLX,PPIH,CAH,OKE,GOOGL,TSLA,IBKR,HOOD,DVN,
-CRWD,OPEN,TXG,ARGX,AMZN"""
+# ---------- First page: stock master table ----------
+try:
+    master_df = pd.read_csv("stocks_master.csv")
+except Exception:
+    master_df = pd.DataFrame(columns=["Ticker", "Company", "Industry", "Catalyst"])
+
+st.subheader("Stock List")
+
+if not master_df.empty:
+    stock_list_view = master_df[["Ticker", "Company", "Industry", "Catalyst"]].copy()
+    st.dataframe(stock_list_view, use_container_width=True, hide_index=True)
+else:
+    st.warning("stocks_master.csv was not found or could not be read.")
+
+st.divider()
+
+# ---------- Analysis section ----------
+default_tickers = ",".join(master_df["Ticker"].dropna().astype(str).tolist()) if not master_df.empty else ""
+
+st.subheader("Run Analysis")
 
 tickers_text = st.text_area(
     "Tickers (comma separated)",
     value=default_tickers,
-    height=180
+    height=140
 )
 
 st.subheader("Parameters")
@@ -46,14 +58,18 @@ if run_button:
 
     st.success("Analysis complete")
 
-    # Compact mobile summary
-    summary_df = df[["symbol", "RSI_dist_%_from_RSI_MA_14", "Price_dist_%_from_SMA_200", "BUY/SELL signal"]].copy()
+    summary_df = df[[
+        "symbol",
+        "RSI_dist_%_from_RSI_MA_14",
+        "Price_dist_%_from_SMA_200",
+        "BUY/SELL signal"
+    ]].copy()
     summary_df.columns = ["Name", "dist RSI", "dist 200SMA", "BUY/SELL"]
 
     st.subheader("Summary")
     st.dataframe(summary_df, use_container_width=True, hide_index=True)
 
-    with st.expander("Show full table"):
+    with st.expander("Show full analysis table"):
         st.dataframe(df, use_container_width=True, hide_index=True)
 
     csv_data = df.to_csv(index=False).encode("utf-8")
