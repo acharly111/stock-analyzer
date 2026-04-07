@@ -1,5 +1,6 @@
 import streamlit as st
 import pandas as pd
+import html
 from engine import build_output, save_outputs
 
 st.set_page_config(page_title="Stock Analyzer", layout="centered")
@@ -8,7 +9,13 @@ st.title("Stock Analyzer")
 
 # ---------- First page: stock master table ----------
 try:
-    master_df = pd.read_csv("stocks_master.csv", encoding="latin1")
+    master_df = pd.read_csv("stocks_master.csv", encoding="latin1", engine="python")
+    master_df.columns = master_df.columns.str.strip()
+
+    # Fix possible typo in header
+    if "Industruy" in master_df.columns:
+        master_df = master_df.rename(columns={"Industruy": "Industry"})
+
 except Exception as e:
     st.error(f"Error loading CSV: {e}")
     master_df = pd.DataFrame(columns=["Ticker", "Company", "Industry", "Catalyst"])
@@ -17,7 +24,87 @@ st.subheader("Stock List")
 
 if not master_df.empty:
     stock_list_view = master_df[["Ticker", "Company", "Industry", "Catalyst"]].copy()
-    st.dataframe(stock_list_view, use_container_width=True, hide_index=True)
+
+    def clean_cell(x):
+        if pd.isna(x):
+            return ""
+        return html.escape(str(x)).replace("\n", "<br>")
+
+    rows_html = ""
+    for _, row in stock_list_view.iterrows():
+        rows_html += f"""
+        <tr>
+            <td>{clean_cell(row['Ticker'])}</td>
+            <td>{clean_cell(row['Company'])}</td>
+            <td>{clean_cell(row['Industry'])}</td>
+            <td>{clean_cell(row['Catalyst'])}</td>
+        </tr>
+        """
+
+    st.markdown(
+        f"""
+        <style>
+        .stocks-table {{
+            width: 100%;
+            border-collapse: collapse;
+            table-layout: fixed;
+            font-size: 13px;
+        }}
+
+        .stocks-table th, .stocks-table td {{
+            border: 1px solid #ddd;
+            padding: 8px 10px;
+            vertical-align: top;
+            text-align: left;
+            word-wrap: break-word;
+            white-space: normal;
+            line-height: 1.25;
+        }}
+
+        .stocks-table th {{
+            background-color: #f5f5f5;
+            font-weight: 600;
+        }}
+
+        /* column widths */
+        .stocks-table th:nth-child(1), .stocks-table td:nth-child(1) {{
+            width: 12%;
+        }}
+
+        .stocks-table th:nth-child(2), .stocks-table td:nth-child(2) {{
+            width: 18%;
+        }}
+
+        .stocks-table th:nth-child(3), .stocks-table td:nth-child(3) {{
+            width: 18%;
+        }}
+
+        .stocks-table th:nth-child(4), .stocks-table td:nth-child(4) {{
+            width: 52%;
+        }}
+
+        /* taller rows */
+        .stocks-table tbody tr {{
+            height: 52px;
+        }}
+        </style>
+
+        <table class="stocks-table">
+            <thead>
+                <tr>
+                    <th>Ticker</th>
+                    <th>Company</th>
+                    <th>Industry</th>
+                    <th>Catalyst</th>
+                </tr>
+            </thead>
+            <tbody>
+                {rows_html}
+            </tbody>
+        </table>
+        """,
+        unsafe_allow_html=True
+    )
 else:
     st.warning("stocks_master.csv was not found or could not be read.")
 
