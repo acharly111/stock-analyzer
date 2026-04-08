@@ -8,6 +8,7 @@ st.set_page_config(page_title="Stock Analyzer", layout="centered")
 st.title("Stock Analyzer")
 
 
+# ---------- Helpers ----------
 def to_scalar(x):
     if isinstance(x, pd.Series):
         return x.iloc[0]
@@ -18,8 +19,10 @@ def to_scalar(x):
 def load_master_df():
     master_df = pd.read_csv("stocks_master.csv", encoding="latin1", engine="python")
     master_df.columns = master_df.columns.str.strip()
+
     if "Industruy" in master_df.columns:
         master_df = master_df.rename(columns={"Industruy": "Industry"})
+
     return master_df
 
 
@@ -34,8 +37,10 @@ def format_catalyst(text):
         return ""
     text = str(text)
     parts = text.split("\n", 1)
+
     first_line = html.escape(parts[0])
     rest = html.escape(parts[1]) if len(parts) > 1 else ""
+
     if rest:
         return f"<b>{first_line}</b><br>{rest.replace(chr(10), '<br>')}"
     return f"<b>{first_line}</b>"
@@ -44,11 +49,14 @@ def format_catalyst(text):
 def calculate_rsi_and_ma(data):
     data = data.copy()
     data["SMA_200"] = data["Close"].rolling(200).mean()
+
     delta = data["Close"].diff()
     gain = delta.clip(lower=0)
     loss = -delta.clip(upper=0)
-    avg_gain = gain.ewm(alpha=1/14, min_periods=14).mean()
-    avg_loss = loss.ewm(alpha=1/14, min_periods=14).mean()
+
+    avg_gain = gain.ewm(alpha=1 / 14, min_periods=14).mean()
+    avg_loss = loss.ewm(alpha=1 / 14, min_periods=14).mean()
+
     rs = avg_gain / avg_loss
     data["RSI_14"] = 100 - (100 / (1 + rs))
     data["RSI_MA_14"] = data["RSI_14"].rolling(14).mean()
@@ -65,6 +73,7 @@ def get_market_snapshot():
         auto_adjust=False,
         group_by="column"
     )
+
     vix = yf.download(
         "^VIX",
         period="6mo",
@@ -119,43 +128,43 @@ def market_status_spy_dist(value, overbought=10.0, oversold=-10.0):
     if value is None:
         return "N/A", ""
     if value > overbought:
-        return f"{value:.2f}% + overbought", "#f8d7da"
+        return f"{value:.2f}% overbought", "#f8d7da"
     if value < oversold:
-        return f"{value:.2f}% + oversold", "#d4edda"
-    return f"{value:.2f}% + neutral", "#fff3cd"
+        return f"{value:.2f}% oversold", "#d4edda"
+    return f"{value:.2f}% neutral", "#fff3cd"
 
 
 def market_status_rsi(value, overbought=69.0, oversold=35.0):
     if value is None:
         return "N/A", ""
     if value > overbought:
-        return f"{value:.2f} + overbought", "#f8d7da"
+        return f"{value:.2f} overbought", "#f8d7da"
     if value < oversold:
-        return f"{value:.2f} + oversold", "#d4edda"
-    return f"{value:.2f} + neutral", "#fff3cd"
+        return f"{value:.2f} oversold", "#d4edda"
+    return f"{value:.2f} neutral", "#fff3cd"
 
 
 def market_status_rsi_dist(value, overbought=20.0, oversold=-20.0):
     if value is None:
         return "N/A", ""
     if value > overbought:
-        return f"{value:.2f}% + overbought", "#f8d7da"
+        return f"{value:.2f}% overbought", "#f8d7da"
     if value < oversold:
-        return f"{value:.2f}% + oversold", "#d4edda"
-    return f"{value:.2f}% + neutral", "#fff3cd"
+        return f"{value:.2f}% oversold", "#d4edda"
+    return f"{value:.2f}% neutral", "#fff3cd"
 
 
 def market_status_vix(value, fear=30.0, no_fear=20.0):
     if value is None:
         return "N/A", ""
     if value > fear:
-        return f"{value:.2f} + Fear", ""
+        return f"{value:.2f} Fear", ""
     if value < no_fear:
-        return f"{value:.2f} + No Fear", ""
-    return f"{value:.2f} + Mid Fear", ""
+        return f"{value:.2f} No Fear", ""
+    return f"{value:.2f} Mid Fear", ""
 
 
-# Defaults
+# ---------- Session defaults ----------
 defaults = {
     "selected_sma": 200,
     "buy_rsi_dist_max": -10.0,
@@ -175,7 +184,10 @@ for k, v in defaults.items():
     if k not in st.session_state:
         st.session_state[k] = v
 
-data_tab, params_tab = st.tabs(["Data", "Parameters"])
+
+# ---------- Tabs ----------
+data_tab, params_tab, stocks_tab = st.tabs(["Market & Analysis", "Parameters", "Stock List"])
+
 
 with data_tab:
     if st.button("Refresh market + stocks data", use_container_width=True):
@@ -223,10 +235,10 @@ with data_tab:
         ("VIX", vix_text, ""),
     ]
 
-    rows_html = ""
+    market_rows_html = ""
     for metric, value, color in market_rows:
         style = f'background-color:{color};' if color else ""
-        rows_html += f"""
+        market_rows_html += f"""
         <tr>
             <td>{html.escape(metric)}</td>
             <td style="{style}">{html.escape(value)}</td>
@@ -240,14 +252,14 @@ with data_tab:
             width: 100%;
             border-collapse: collapse;
             table-layout: fixed;
-            font-size: 14px;
+            font-size: 17px;
             margin-bottom: 16px;
         }}
         .market-table th, .market-table td {{
             border: 1px solid #ddd;
-            padding: 10px;
-            text-align: left;
-            vertical-align: top;
+            padding: 12px;
+            text-align: center;
+            vertical-align: middle;
             word-wrap: break-word;
         }}
         .market-table th {{
@@ -270,7 +282,7 @@ with data_tab:
                 </tr>
             </thead>
             <tbody>
-                {rows_html}
+                {market_rows_html}
             </tbody>
         </table>
         """,
@@ -282,80 +294,6 @@ with data_tab:
     except Exception as e:
         st.error(f"Error loading CSV: {e}")
         master_df = pd.DataFrame(columns=["Ticker", "Company", "Industry", "Catalyst"])
-
-    st.subheader("Stock List")
-
-    if not master_df.empty:
-        stock_list_view = master_df[["Ticker", "Company", "Industry", "Catalyst"]].copy()
-
-        rows_html = ""
-        for _, row in stock_list_view.iterrows():
-            rows_html += f"""
-            <tr>
-                <td>{clean_cell(row['Ticker'])}</td>
-                <td>{clean_cell(row['Company'])}</td>
-                <td>{clean_cell(row['Industry'])}</td>
-                <td>{format_catalyst(row['Catalyst'])}</td>
-            </tr>
-            """
-
-        st.markdown(
-            f"""
-            <style>
-            .stocks-table {{
-                width: 100%;
-                border-collapse: collapse;
-                table-layout: fixed;
-                font-size: 12px;
-            }}
-            .stocks-table th, .stocks-table td {{
-                border: 1px solid #ddd;
-                padding: 6px 8px;
-                vertical-align: top;
-                text-align: left;
-                word-wrap: break-word;
-                white-space: normal;
-                line-height: 1.15;
-            }}
-            .stocks-table th {{
-                background-color: #f5f5f5;
-                font-weight: 600;
-            }}
-            .stocks-table th:nth-child(1), .stocks-table td:nth-child(1) {{
-                width: 16%;
-            }}
-            .stocks-table th:nth-child(2), .stocks-table td:nth-child(2) {{
-                width: 16%;
-            }}
-            .stocks-table th:nth-child(3), .stocks-table td:nth-child(3) {{
-                width: 16%;
-            }}
-            .stocks-table th:nth-child(4), .stocks-table td:nth-child(4) {{
-                width: 52%;
-            }}
-            .stocks-table tbody tr {{
-                height: 28px;
-            }}
-            </style>
-
-            <table class="stocks-table">
-                <thead>
-                    <tr>
-                        <th>Ticker</th>
-                        <th>Company</th>
-                        <th>Industry</th>
-                        <th>Catalyst</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {rows_html}
-                </tbody>
-            </table>
-            """,
-            unsafe_allow_html=True
-        )
-    else:
-        st.warning("stocks_master.csv was not found or could not be read.")
 
     st.divider()
 
@@ -443,6 +381,7 @@ with data_tab:
             use_container_width=True
         )
 
+
 with params_tab:
     st.subheader("Market Parameters")
 
@@ -503,3 +442,85 @@ with params_tab:
     )
 
     st.info("Market data loads automatically on app open. Use Refresh in the first tab to force a new Yahoo fetch.")
+
+
+with stocks_tab:
+    try:
+        master_df = load_master_df()
+    except Exception as e:
+        st.error(f"Error loading CSV: {e}")
+        master_df = pd.DataFrame(columns=["Ticker", "Company", "Industry", "Catalyst"])
+
+    st.subheader("Stock List")
+
+    if not master_df.empty:
+        stock_list_view = master_df[["Ticker", "Company", "Industry", "Catalyst"]].copy()
+
+        rows_html = ""
+        for _, row in stock_list_view.iterrows():
+            rows_html += f"""
+            <tr>
+                <td>{clean_cell(row['Ticker'])}</td>
+                <td>{clean_cell(row['Company'])}</td>
+                <td>{clean_cell(row['Industry'])}</td>
+                <td>{format_catalyst(row['Catalyst'])}</td>
+            </tr>
+            """
+
+        st.markdown(
+            f"""
+            <style>
+            .stocks-table {{
+                width: 100%;
+                border-collapse: collapse;
+                table-layout: fixed;
+                font-size: 12px;
+            }}
+            .stocks-table th, .stocks-table td {{
+                border: 1px solid #ddd;
+                padding: 6px 8px;
+                vertical-align: top;
+                text-align: left;
+                word-wrap: break-word;
+                white-space: normal;
+                line-height: 1.15;
+            }}
+            .stocks-table th {{
+                background-color: #f5f5f5;
+                font-weight: 600;
+            }}
+            .stocks-table th:nth-child(1), .stocks-table td:nth-child(1) {{
+                width: 16%;
+            }}
+            .stocks-table th:nth-child(2), .stocks-table td:nth-child(2) {{
+                width: 16%;
+            }}
+            .stocks-table th:nth-child(3), .stocks-table td:nth-child(3) {{
+                width: 16%;
+            }}
+            .stocks-table th:nth-child(4), .stocks-table td:nth-child(4) {{
+                width: 52%;
+            }}
+            .stocks-table tbody tr {{
+                height: 28px;
+            }}
+            </style>
+
+            <table class="stocks-table">
+                <thead>
+                    <tr>
+                        <th>Ticker</th>
+                        <th>Company</th>
+                        <th>Industry</th>
+                        <th>Catalyst</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {rows_html}
+                </tbody>
+            </table>
+            """,
+            unsafe_allow_html=True
+        )
+    else:
+        st.warning("stocks_master.csv was not found or could not be read.")
