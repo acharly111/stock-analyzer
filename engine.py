@@ -1,6 +1,30 @@
 import yfinance as yf
 import pandas as pd
 from openpyxl import load_workbook
+import json
+import os
+
+
+EARNINGS_CACHE_FILE = "earnings_cache.json"
+
+
+def load_earnings_cache():
+    if not os.path.exists(EARNINGS_CACHE_FILE):
+        return {}
+    try:
+        with open(EARNINGS_CACHE_FILE, "r", encoding="utf-8") as f:
+            data = json.load(f)
+            return data if isinstance(data, dict) else {}
+    except Exception:
+        return {}
+
+
+def save_earnings_cache(cache):
+    try:
+        with open(EARNINGS_CACHE_FILE, "w", encoding="utf-8") as f:
+            json.dump(cache, f, indent=2)
+    except Exception:
+        pass
 
 
 def calculate_atr(data, period=14):
@@ -77,11 +101,7 @@ def _normalize_earnings_date(value):
         return None
 
 
-def get_next_earnings_date(symbol):
-    """
-    Try to get the next future earnings date from Yahoo via yfinance.
-    Returns 'YYYY-MM-DD' or None.
-    """
+def _fetch_next_earnings_date_from_yahoo(symbol):
     try:
         ticker = yf.Ticker(symbol)
 
@@ -90,8 +110,8 @@ def get_next_earnings_date(symbol):
             edf = ticker.get_earnings_dates(limit=12)
             if edf is not None and not edf.empty:
                 today = pd.Timestamp.today().normalize()
-
                 dates = []
+
                 for idx in edf.index:
                     ts = _normalize_earnings_date(idx)
                     if ts is not None and ts >= today:
@@ -108,9 +128,10 @@ def get_next_earnings_date(symbol):
 
             if isinstance(cal, dict):
                 earnings_value = cal.get("Earnings Date")
+
                 if isinstance(earnings_value, (list, tuple)):
-                    dates = []
                     today = pd.Timestamp.today().normalize()
+                    dates = []
                     for item in earnings_value:
                         ts = _normalize_earnings_date(item)
                         if ts is not None and ts >= today:
@@ -119,20 +140,18 @@ def get_next_earnings_date(symbol):
                         return min(dates).strftime("%Y-%m-%d")
                 else:
                     ts = _normalize_earnings_date(earnings_value)
-                    if ts is not None:
+                    if ts is not None and ts >= today:
                         return ts.strftime("%Y-%m-%d")
 
             if isinstance(cal, pd.DataFrame) and not cal.empty:
                 today = pd.Timestamp.today().normalize()
-
-                # Try index
                 dates = []
+
                 for idx in cal.index:
                     ts = _normalize_earnings_date(idx)
                     if ts is not None and ts >= today:
                         dates.append(ts)
 
-                # Try cells if index fails
                 if not dates:
                     for col in cal.columns:
                         for item in cal[col].tolist():
@@ -147,6 +166,43 @@ def get_next_earnings_date(symbol):
 
     except Exception:
         pass
+
+    return None
+
+
+def get_next_earnings_date(symbol):
+    """
+    Reuse cached next earnings date unless:
+    - there is no cached date
+    - cached date is within 21 days
+    - cached date already passed
+
+    If refresh fails, keep cached date if it exists.
+    """
+    cache = load_earnings_cache()
+    today = pd.Timestamp.today().normalize()
+
+    cached_date_str = cache.get(symbol)
+
+    if cached_date_str:
+        try:
+            cached_ts = pd.Timestamp(cached_date_str).normalize()
+            days_to_cached = (cached_ts - today).days
+
+            if days_to_cached > 21:
+                return cached_date_str
+        except Exception:
+            pass
+
+    new_date = _fetch_next_earnings_date_from_yahoo(symbol)
+
+    if new_date:
+        cache[symbol] = new_date
+        save_earnings_cache(cache)
+        return new_date
+
+    if cached_date_str:
+        return cached_date_str
 
     return None
 
@@ -210,8 +266,8 @@ def analyze_stocks(tickers):
             gain = delta.clip(lower=0)
             loss = -delta.clip(upper=0)
 
-            avg_gain = gain.ewm(alpha=1/14, min_periods=14).mean()
-            avg_loss = loss.ewm(alpha=1/14, min_periods=14).mean()
+            avg_gain = gain.ewm(alpha=1 / 14, min_periods=14).mean()
+            avg_loss = loss.ewm(alpha=1 / 14, min_periods=14).mean()
 
             rs = avg_gain / avg_loss
             data["RSI_14"] = 100 - (100 / (1 + rs))
@@ -364,8 +420,8 @@ def get_spy_row():
         delta = data["Close"].diff()
         gain = delta.clip(lower=0)
         loss = -delta.clip(upper=0)
-        avg_gain = gain.ewm(alpha=1/14, min_periods=14).mean()
-        avg_loss = loss.ewm(alpha=1/14, min_periods=14).mean()
+        avg_gain = gain.ewm(alpha=1 / 14, min_periods=14).mean()
+        avg_loss = loss.ewm(alpha=1 / 14, min_periods=14).mean()
         rs = avg_gain / avg_loss
         data["RSI_14"] = 100 - (100 / (1 + rs))
         data["RSI_MA_14"] = data["RSI_14"].rolling(14).mean()
