@@ -267,9 +267,9 @@ with data_tab:
     )
 
     market_rows = [
-        ("SPY distance from 200SMA", spy_dist_text, spy_dist_color),
+        ("SPY vs 200SMA", spy_dist_text, spy_dist_color),
         ("RSI", rsi_text, rsi_color),
-        ("RSI distance from 14MA", rsi_dist_text, rsi_dist_color),
+        ("RSI vs 14MA", rsi_dist_text, rsi_dist_color),
         ("VIX", vix_text, ""),
     ]
 
@@ -380,7 +380,7 @@ with data_tab:
             "next_earnings_date",
             "BUY/SELL signal"
         ]].copy()
-        summary_df.columns = ["Name", "Risk_level", "stock_vs_spy", "Next earning", "BUY/SELL"]
+        summary_df.columns = ["Name", "Risk level", "Stock vs SPY", "Next earning", "BUY SELL"]
 
         today = pd.Timestamp.today().normalize()
 
@@ -402,10 +402,10 @@ with data_tab:
             summary_rows_html += f"""
             <tr>
                 <td>{html.escape(str(row['Name']) if pd.notna(row['Name']) else '')}</td>
-                <td>{html.escape(str(row['Risk_level']) if pd.notna(row['Risk_level']) else '')}</td>
-                <td>{html.escape(str(row['stock_vs_spy']) if pd.notna(row['stock_vs_spy']) else '')}</td>
+                <td>{html.escape(str(row['Risk level']) if pd.notna(row['Risk level']) else '')}</td>
+                <td>{html.escape(str(row['Stock vs SPY']) if pd.notna(row['Stock vs SPY']) else '')}</td>
                 <td style="{earnings_style}">{html.escape(earnings_text)}</td>
-                <td>{html.escape(str(row['BUY/SELL']) if pd.notna(row['BUY/SELL']) else '')}</td>
+                <td>{html.escape(str(row['BUY SELL']) if pd.notna(row['BUY SELL']) else '')}</td>
             </tr>
             """
 
@@ -438,10 +438,10 @@ with data_tab:
                 <thead>
                     <tr>
                         <th>Name</th>
-                        <th>Risk_level</th>
-                        <th>stock_vs_spy</th>
+                        <th>Risk level</th>
+                        <th>Stock vs SPY</th>
                         <th>Next earning</th>
-                        <th>BUY/SELL</th>
+                        <th>BUY SELL</th>
                     </tr>
                 </thead>
                 <tbody>
