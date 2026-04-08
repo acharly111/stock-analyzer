@@ -70,7 +70,7 @@ def analyze_stocks(tickers):
         try:
             data = yf.download(
                 ticker,
-                period="1y",
+                period="2y",
                 interval="1d",
                 progress=False,
                 auto_adjust=False,
@@ -90,11 +90,17 @@ def analyze_stocks(tickers):
                     "Change_%_03_09_to_04_02": None,
                     "Change_%_03_30_to_04_02": None,
                     "Strong_vs_SPY": None,
-                    "SMA_200": None,
+                    "SMA_20": None,
+                    "SMA_50": None,
+                    "SMA_100": None,
                     "SMA_150": None,
+                    "SMA_200": None,
                     "RSI_14": None,
                     "RSI_MA_14": None,
                     "RSI_dist_%_from_RSI_MA_14": None,
+                    "Price_dist_%_from_SMA_20": None,
+                    "Price_dist_%_from_SMA_50": None,
+                    "Price_dist_%_from_SMA_100": None,
                     "Price_dist_%_from_SMA_150": None,
                     "Price_dist_%_from_SMA_200": None,
                     "BUY/SELL signal": None,
@@ -106,8 +112,8 @@ def analyze_stocks(tickers):
 
             data["ATR_14"] = calculate_atr(data)
 
-            data["SMA_200"] = data["Close"].rolling(200).mean()
-            data["SMA_150"] = data["Close"].rolling(150).mean()
+            for sma in [20, 50, 100, 150, 200]:
+                data[f"SMA_{sma}"] = data["Close"].rolling(sma).mean()
 
             delta = data["Close"].diff()
             gain = delta.clip(lower=0)
@@ -123,8 +129,11 @@ def analyze_stocks(tickers):
             price = to_scalar(data["Close"].iloc[-1])
             atr = to_scalar(data["ATR_14"].iloc[-1])
 
-            sma_200 = to_scalar(data["SMA_200"].iloc[-1])
-            sma_150 = to_scalar(data["SMA_150"].iloc[-1])
+            sma_vals = {}
+            for sma in [20, 50, 100, 150, 200]:
+                sma_val = to_scalar(data[f"SMA_{sma}"].iloc[-1])
+                sma_vals[sma] = round(float(sma_val), 2) if pd.notna(sma_val) else None
+
             rsi_14 = to_scalar(data["RSI_14"].iloc[-1])
             rsi_ma_14 = to_scalar(data["RSI_MA_14"].iloc[-1])
 
@@ -145,11 +154,17 @@ def analyze_stocks(tickers):
                     "Change_%_03_09_to_04_02": None,
                     "Change_%_03_30_to_04_02": None,
                     "Strong_vs_SPY": None,
-                    "SMA_200": round(float(sma_200), 2) if pd.notna(sma_200) else None,
-                    "SMA_150": round(float(sma_150), 2) if pd.notna(sma_150) else None,
+                    "SMA_20": sma_vals[20],
+                    "SMA_50": sma_vals[50],
+                    "SMA_100": sma_vals[100],
+                    "SMA_150": sma_vals[150],
+                    "SMA_200": sma_vals[200],
                     "RSI_14": round(float(rsi_14), 2) if pd.notna(rsi_14) else None,
                     "RSI_MA_14": round(float(rsi_ma_14), 2) if pd.notna(rsi_ma_14) else None,
                     "RSI_dist_%_from_RSI_MA_14": None,
+                    "Price_dist_%_from_SMA_20": None,
+                    "Price_dist_%_from_SMA_50": None,
+                    "Price_dist_%_from_SMA_100": None,
                     "Price_dist_%_from_SMA_150": None,
                     "Price_dist_%_from_SMA_200": None,
                     "BUY/SELL signal": None,
@@ -160,6 +175,17 @@ def analyze_stocks(tickers):
             atr = float(atr)
             atr_pct = atr / price
             risk = classify_risk(atr_pct)
+
+            price_dist = {}
+            for sma in [20, 50, 100, 150, 200]:
+                if sma_vals[sma] not in [None, 0]:
+                    price_dist[sma] = round(((price / sma_vals[sma]) - 1) * 100, 2)
+                else:
+                    price_dist[sma] = None
+
+            rsi_dist = None
+            if pd.notna(rsi_14) and pd.notna(rsi_ma_14) and float(rsi_ma_14) != 0:
+                rsi_dist = round(((float(rsi_14) / float(rsi_ma_14)) - 1) * 100, 2)
 
             results.append({
                 "symbol": ticker,
@@ -173,13 +199,19 @@ def analyze_stocks(tickers):
                 "Change_%_03_09_to_04_02": None,
                 "Change_%_03_30_to_04_02": None,
                 "Strong_vs_SPY": None,
-                "SMA_200": round(float(sma_200), 2) if pd.notna(sma_200) else None,
-                "SMA_150": round(float(sma_150), 2) if pd.notna(sma_150) else None,
+                "SMA_20": sma_vals[20],
+                "SMA_50": sma_vals[50],
+                "SMA_100": sma_vals[100],
+                "SMA_150": sma_vals[150],
+                "SMA_200": sma_vals[200],
                 "RSI_14": round(float(rsi_14), 2) if pd.notna(rsi_14) else None,
                 "RSI_MA_14": round(float(rsi_ma_14), 2) if pd.notna(rsi_ma_14) else None,
-                "RSI_dist_%_from_RSI_MA_14": None,
-                "Price_dist_%_from_SMA_150": None,
-                "Price_dist_%_from_SMA_200": None,
+                "RSI_dist_%_from_RSI_MA_14": rsi_dist,
+                "Price_dist_%_from_SMA_20": price_dist[20],
+                "Price_dist_%_from_SMA_50": price_dist[50],
+                "Price_dist_%_from_SMA_100": price_dist[100],
+                "Price_dist_%_from_SMA_150": price_dist[150],
+                "Price_dist_%_from_SMA_200": price_dist[200],
                 "BUY/SELL signal": None,
             })
 
@@ -196,11 +228,17 @@ def analyze_stocks(tickers):
                 "Change_%_03_09_to_04_02": None,
                 "Change_%_03_30_to_04_02": None,
                 "Strong_vs_SPY": None,
-                "SMA_200": None,
+                "SMA_20": None,
+                "SMA_50": None,
+                "SMA_100": None,
                 "SMA_150": None,
+                "SMA_200": None,
                 "RSI_14": None,
                 "RSI_MA_14": None,
                 "RSI_dist_%_from_RSI_MA_14": None,
+                "Price_dist_%_from_SMA_20": None,
+                "Price_dist_%_from_SMA_50": None,
+                "Price_dist_%_from_SMA_100": None,
                 "Price_dist_%_from_SMA_150": None,
                 "Price_dist_%_from_SMA_200": None,
                 "BUY/SELL signal": None,
@@ -213,7 +251,7 @@ def get_spy_row():
     try:
         data = yf.download(
             "SPY",
-            period="1y",
+            period="2y",
             interval="1d",
             progress=False,
             auto_adjust=False,
@@ -221,76 +259,72 @@ def get_spy_row():
         )
 
         if data.empty:
-            return {
-                "symbol": "SPY",
-                "price": None,
-                "ATR_14": None,
-                "ATR_pct": None,
-                "risk_level": "Benchmark",
-                "Close_2026_03_09": None,
-                "Close_2026_03_30": None,
-                "Close_2026_04_02": None,
-                "Change_%_03_09_to_04_02": None,
-                "Change_%_03_30_to_04_02": None,
-                "Strong_vs_SPY": None,
-                "SMA_200": None,
-                "SMA_150": None,
-                "RSI_14": None,
-                "RSI_MA_14": None,
-                "RSI_dist_%_from_RSI_MA_14": None,
-                "Price_dist_%_from_SMA_150": None,
-                "Price_dist_%_from_SMA_200": None,
-                "BUY/SELL signal": None,
-            }
+            raise ValueError("SPY data empty")
 
         if isinstance(data.columns, pd.MultiIndex):
             data.columns = data.columns.get_level_values(0)
 
-        data["SMA_200"] = data["Close"].rolling(200).mean()
-        data["SMA_150"] = data["Close"].rolling(150).mean()
+        for sma in [20, 50, 100, 150, 200]:
+            data[f"SMA_{sma}"] = data["Close"].rolling(sma).mean()
 
         delta = data["Close"].diff()
         gain = delta.clip(lower=0)
         loss = -delta.clip(upper=0)
-
         avg_gain = gain.ewm(alpha=1/14, min_periods=14).mean()
         avg_loss = loss.ewm(alpha=1/14, min_periods=14).mean()
-
         rs = avg_gain / avg_loss
         data["RSI_14"] = 100 - (100 / (1 + rs))
         data["RSI_MA_14"] = data["RSI_14"].rolling(14).mean()
 
-        close_2026_03_09 = get_close_on_date(data, "2026-03-09")
-        close_2026_03_30 = get_close_on_date(data, "2026-03-30")
-        close_2026_04_02 = get_close_on_date(data, "2026-04-02")
+        price = float(to_scalar(data["Close"].dropna().iloc[-1]))
 
-        last_price = to_scalar(data["Close"].iloc[-1])
-        last_price = round(float(last_price), 2) if not pd.isna(last_price) else None
+        sma_vals = {}
+        for sma in [20, 50, 100, 150, 200]:
+            series = data[f"SMA_{sma}"].dropna()
+            sma_vals[sma] = round(float(to_scalar(series.iloc[-1])), 2) if not series.empty else None
 
-        sma_200 = to_scalar(data["SMA_200"].iloc[-1])
-        sma_150 = to_scalar(data["SMA_150"].iloc[-1])
-        rsi_14 = to_scalar(data["RSI_14"].iloc[-1])
-        rsi_ma_14 = to_scalar(data["RSI_MA_14"].iloc[-1])
+        rsi_14_series = data["RSI_14"].dropna()
+        rsi_ma_14_series = data["RSI_MA_14"].dropna()
+
+        rsi_14 = round(float(to_scalar(rsi_14_series.iloc[-1])), 2) if not rsi_14_series.empty else None
+        rsi_ma_14 = round(float(to_scalar(rsi_ma_14_series.iloc[-1])), 2) if not rsi_ma_14_series.empty else None
+
+        rsi_dist = None
+        if rsi_14 is not None and rsi_ma_14 not in [None, 0]:
+            rsi_dist = round(((rsi_14 / rsi_ma_14) - 1) * 100, 2)
+
+        price_dist = {}
+        for sma in [20, 50, 100, 150, 200]:
+            if sma_vals[sma] not in [None, 0]:
+                price_dist[sma] = round(((price / sma_vals[sma]) - 1) * 100, 2)
+            else:
+                price_dist[sma] = None
 
         return {
             "symbol": "SPY",
-            "price": last_price,
+            "price": round(price, 2),
             "ATR_14": None,
             "ATR_pct": None,
             "risk_level": "Benchmark",
-            "Close_2026_03_09": close_2026_03_09,
-            "Close_2026_03_30": close_2026_03_30,
-            "Close_2026_04_02": close_2026_04_02,
+            "Close_2026_03_09": get_close_on_date(data, "2026-03-09"),
+            "Close_2026_03_30": get_close_on_date(data, "2026-03-30"),
+            "Close_2026_04_02": get_close_on_date(data, "2026-04-02"),
             "Change_%_03_09_to_04_02": None,
             "Change_%_03_30_to_04_02": None,
             "Strong_vs_SPY": None,
-            "SMA_200": round(float(sma_200), 2) if pd.notna(sma_200) else None,
-            "SMA_150": round(float(sma_150), 2) if pd.notna(sma_150) else None,
-            "RSI_14": round(float(rsi_14), 2) if pd.notna(rsi_14) else None,
-            "RSI_MA_14": round(float(rsi_ma_14), 2) if pd.notna(rsi_ma_14) else None,
-            "RSI_dist_%_from_RSI_MA_14": None,
-            "Price_dist_%_from_SMA_150": None,
-            "Price_dist_%_from_SMA_200": None,
+            "SMA_20": sma_vals[20],
+            "SMA_50": sma_vals[50],
+            "SMA_100": sma_vals[100],
+            "SMA_150": sma_vals[150],
+            "SMA_200": sma_vals[200],
+            "RSI_14": rsi_14,
+            "RSI_MA_14": rsi_ma_14,
+            "RSI_dist_%_from_RSI_MA_14": rsi_dist,
+            "Price_dist_%_from_SMA_20": price_dist[20],
+            "Price_dist_%_from_SMA_50": price_dist[50],
+            "Price_dist_%_from_SMA_100": price_dist[100],
+            "Price_dist_%_from_SMA_150": price_dist[150],
+            "Price_dist_%_from_SMA_200": price_dist[200],
             "BUY/SELL signal": None,
         }
 
@@ -307,11 +341,17 @@ def get_spy_row():
             "Change_%_03_09_to_04_02": None,
             "Change_%_03_30_to_04_02": None,
             "Strong_vs_SPY": None,
-            "SMA_200": None,
+            "SMA_20": None,
+            "SMA_50": None,
+            "SMA_100": None,
             "SMA_150": None,
+            "SMA_200": None,
             "RSI_14": None,
             "RSI_MA_14": None,
             "RSI_dist_%_from_RSI_MA_14": None,
+            "Price_dist_%_from_SMA_20": None,
+            "Price_dist_%_from_SMA_50": None,
+            "Price_dist_%_from_SMA_100": None,
             "Price_dist_%_from_SMA_150": None,
             "Price_dist_%_from_SMA_200": None,
             "BUY/SELL signal": None,
@@ -320,15 +360,14 @@ def get_spy_row():
 
 def fill_gui_columns(
     df,
+    selected_sma=200,
     buy_rsi_dist_max=-10,
-    buy_dist_200_max=10,
-    buy_dist_150_max=5,
+    buy_dist_selected_sma_max=10,
     sell_rsi_min=70,
-    sell_dist_150_min=50
+    sell_dist_selected_sma_min=50
 ):
     df = df.copy()
 
-    # Python-calculated versions of the Excel formula columns
     df["Change_%_03_09_to_04_02"] = df.apply(
         lambda row: calc_pct_change(row["Close_2026_03_09"], row["Close_2026_04_02"]),
         axis=1
@@ -339,28 +378,8 @@ def fill_gui_columns(
         axis=1
     )
 
-    df["RSI_dist_%_from_RSI_MA_14"] = df.apply(
-        lambda row: round(((row["RSI_14"] / row["RSI_MA_14"]) - 1) * 100, 2)
-        if pd.notna(row["RSI_14"]) and pd.notna(row["RSI_MA_14"]) and row["RSI_MA_14"] not in [0, None]
-        else None,
-        axis=1
-    )
+    selected_dist_col = f"Price_dist_%_from_SMA_{selected_sma}"
 
-    df["Price_dist_%_from_SMA_150"] = df.apply(
-        lambda row: round(((row["price"] / row["SMA_150"]) - 1) * 100, 2)
-        if pd.notna(row["price"]) and pd.notna(row["SMA_150"]) and row["SMA_150"] not in [0, None]
-        else None,
-        axis=1
-    )
-
-    df["Price_dist_%_from_SMA_200"] = df.apply(
-        lambda row: round(((row["price"] / row["SMA_200"]) - 1) * 100, 2)
-        if pd.notna(row["price"]) and pd.notna(row["SMA_200"]) and row["SMA_200"] not in [0, None]
-        else None,
-        axis=1
-    )
-
-    # Strong_vs_SPY
     spy_rows = df[df["symbol"] == "SPY"]
     if not spy_rows.empty:
         spy_change_1 = spy_rows.iloc[0]["Change_%_03_09_to_04_02"]
@@ -379,30 +398,28 @@ def fill_gui_columns(
 
         df["Strong_vs_SPY"] = df.apply(strong_vs_spy, axis=1)
 
-    # BUY/SELL signal
     def signal(row):
         if row["symbol"] == "SPY":
             return "Benchmark"
 
+        sma_value = row.get(f"SMA_{selected_sma}")
+        sma_dist = row.get(selected_dist_col)
+
         buy_ok = (
-            pd.notna(row["RSI_dist_%_from_RSI_MA_14"]) and
-            pd.notna(row["price"]) and
-            pd.notna(row["SMA_200"]) and
-            pd.notna(row["Price_dist_%_from_SMA_200"]) and
-            pd.notna(row["Price_dist_%_from_SMA_150"]) and
+            pd.notna(row.get("RSI_dist_%_from_RSI_MA_14")) and
+            pd.notna(row.get("price")) and
+            pd.notna(sma_value) and
+            pd.notna(sma_dist) and
             row["RSI_dist_%_from_RSI_MA_14"] < buy_rsi_dist_max and
-            row["price"] > row["SMA_200"] and
-            (
-                row["Price_dist_%_from_SMA_200"] < buy_dist_200_max or
-                row["Price_dist_%_from_SMA_150"] < buy_dist_150_max
-            )
+            row["price"] > sma_value and
+            sma_dist < buy_dist_selected_sma_max
         )
 
         sell_ok = (
-            pd.notna(row["RSI_14"]) and
-            pd.notna(row["Price_dist_%_from_SMA_150"]) and
+            pd.notna(row.get("RSI_14")) and
+            pd.notna(sma_dist) and
             row["RSI_14"] >= sell_rsi_min and
-            row["Price_dist_%_from_SMA_150"] > sell_dist_150_min
+            sma_dist > sell_dist_selected_sma_min
         )
 
         if buy_ok:
@@ -412,17 +429,16 @@ def fill_gui_columns(
         return ""
 
     df["BUY/SELL signal"] = df.apply(signal, axis=1)
-
     return df
 
 
 def build_output(
     tickers,
+    selected_sma=200,
     buy_rsi_dist_max=-10,
-    buy_dist_200_max=10,
-    buy_dist_150_max=5,
+    buy_dist_selected_sma_max=10,
     sell_rsi_min=70,
-    sell_dist_150_min=50
+    sell_dist_selected_sma_min=50
 ):
     df = analyze_stocks(tickers)
     spy_row = get_spy_row()
@@ -430,11 +446,11 @@ def build_output(
 
     df = fill_gui_columns(
         df,
+        selected_sma=selected_sma,
         buy_rsi_dist_max=buy_rsi_dist_max,
-        buy_dist_200_max=buy_dist_200_max,
-        buy_dist_150_max=buy_dist_150_max,
+        buy_dist_selected_sma_max=buy_dist_selected_sma_max,
         sell_rsi_min=sell_rsi_min,
-        sell_dist_150_min=sell_dist_150_min
+        sell_dist_selected_sma_min=sell_dist_selected_sma_min
     )
 
     return df
@@ -442,72 +458,77 @@ def build_output(
 
 def apply_excel_formulas(
     excel_file,
+    selected_sma=200,
     buy_rsi_dist_max=-10,
-    buy_dist_200_max=10,
-    buy_dist_150_max=5,
+    buy_dist_selected_sma_max=10,
     sell_rsi_min=70,
-    sell_dist_150_min=50
+    sell_dist_selected_sma_min=50
 ):
     wb = load_workbook(excel_file)
     ws = wb.active
 
+    headers = {ws.cell(1, c).value: c for c in range(1, ws.max_column + 1)}
     last_row = ws.max_row
     spy_row_num = last_row
 
-    ws["S1"] = "BUY/SELL signal"
-
     ws["U1"] = "Parameter"
     ws["V1"] = "Value"
-
-    ws["U2"] = "BUY: RSI distance max (%)"
-    ws["V2"] = buy_rsi_dist_max
-
-    ws["U3"] = "BUY: Price dist from 200SMA max (%)"
-    ws["V3"] = buy_dist_200_max
-
-    ws["U4"] = "BUY: Price dist from 150SMA max (%)"
-    ws["V4"] = buy_dist_150_max
-
+    ws["U2"] = "Selected SMA"
+    ws["V2"] = selected_sma
+    ws["U3"] = "BUY: RSI distance max (%)"
+    ws["V3"] = buy_rsi_dist_max
+    ws["U4"] = f"BUY: Price dist from SMA{selected_sma} max (%)"
+    ws["V4"] = buy_dist_selected_sma_max
     ws["U5"] = "SELL: RSI min"
     ws["V5"] = sell_rsi_min
+    ws["U6"] = f"SELL: Price dist from SMA{selected_sma} min (%)"
+    ws["V6"] = sell_dist_selected_sma_min
 
-    ws["U6"] = "SELL: Price dist from 150SMA min (%)"
-    ws["V6"] = sell_dist_150_min
+    # Optional helper formulas only if columns exist
+    if "Change_%_03_09_to_04_02" in headers:
+        c = ws.cell(1, headers["Change_%_03_09_to_04_02"]).column_letter
+        fcol = ws.cell(1, headers["Close_2026_03_09"]).column_letter
+        hcol = ws.cell(1, headers["Close_2026_04_02"]).column_letter
+        for r in range(2, last_row + 1):
+            ws[f"{c}{r}"] = f'=IF(OR({fcol}{r}="",{hcol}{r}="",{fcol}{r}=0),"",(({hcol}{r}/{fcol}{r})-1)*100)'
 
-    for r in range(2, last_row + 1):
-        ws[f"I{r}"] = f'=IF(OR(F{r}="",H{r}="",F{r}=0),"",((H{r}/F{r})-1)*100)'
-        ws[f"J{r}"] = f'=IF(OR(G{r}="",H{r}="",G{r}=0),"",((H{r}/G{r})-1)*100)'
+    if "Change_%_03_30_to_04_02" in headers:
+        c = ws.cell(1, headers["Change_%_03_30_to_04_02"]).column_letter
+        gcol = ws.cell(1, headers["Close_2026_03_30"]).column_letter
+        hcol = ws.cell(1, headers["Close_2026_04_02"]).column_letter
+        for r in range(2, last_row + 1):
+            ws[f"{c}{r}"] = f'=IF(OR({gcol}{r}="",{hcol}{r}="",{gcol}{r}=0),"",(({hcol}{r}/{gcol}{r})-1)*100)'
 
-        if r == spy_row_num:
-            ws[f"K{r}"] = "Benchmark"
-        else:
-            ws[f"K{r}"] = (
-                f'=IF(OR(I{r}="",J{r}="",I{spy_row_num}="",J{spy_row_num}=""),"",'
-                f'IF(AND(I{r}>I{spy_row_num},J{r}>J{spy_row_num}),"Strong",""))'
-            )
+    if "Strong_vs_SPY" in headers and "Change_%_03_09_to_04_02" in headers and "Change_%_03_30_to_04_02" in headers:
+        kcol = ws.cell(1, headers["Strong_vs_SPY"]).column_letter
+        icol = ws.cell(1, headers["Change_%_03_09_to_04_02"]).column_letter
+        jcol = ws.cell(1, headers["Change_%_03_30_to_04_02"]).column_letter
+        for r in range(2, last_row + 1):
+            if r == spy_row_num:
+                ws[f"{kcol}{r}"] = "Benchmark"
+            else:
+                ws[f"{kcol}{r}"] = (
+                    f'=IF(OR({icol}{r}="",{jcol}{r}="",{icol}{spy_row_num}="",{jcol}{spy_row_num}=""),"",'
+                    f'IF(AND({icol}{r}>{icol}{spy_row_num},{jcol}{r}>{jcol}{spy_row_num}),"Strong",""))'
+                )
 
-        ws[f"P{r}"] = f'=IF(OR(N{r}="",O{r}="",O{r}=0),"",((N{r}/O{r})-1)*100)'
-        ws[f"Q{r}"] = f'=IF(OR(B{r}="",M{r}="",M{r}=0),"",((B{r}/M{r})-1)*100)'
-        ws[f"R{r}"] = f'=IF(OR(B{r}="",L{r}="",L{r}=0),"",((B{r}/L{r})-1)*100)'
+    if "BUY/SELL signal" in headers:
+        scol = ws.cell(1, headers["BUY/SELL signal"]).column_letter
+        pcol = ws.cell(1, headers["RSI_dist_%_from_RSI_MA_14"]).column_letter
+        ncol = ws.cell(1, headers["RSI_14"]).column_letter
+        price_col = ws.cell(1, headers["price"]).column_letter
+        sma_col = ws.cell(1, headers[f"SMA_{selected_sma}"]).column_letter
+        dist_col = ws.cell(1, headers[f"Price_dist_%_from_SMA_{selected_sma}"]).column_letter
 
-        if r == spy_row_num:
-            ws[f"S{r}"] = "Benchmark"
-        else:
-            ws[f"S{r}"] = (
-                f'=IF(OR(P{r}="",Q{r}="",R{r}="",N{r}="",B{r}="",L{r}="",M{r}=""),"",'
-                f'IF(AND(P{r}<$V$2,B{r}>L{r},OR(R{r}<$V$3,Q{r}<$V$4)),"BUY",'
-                f'IF(AND(N{r}>=$V$5,Q{r}>$V$6),"SELL","")))'
-            )
-
-    for r in range(2, last_row + 1):
-        ws[f"I{r}"].number_format = '0.00'
-        ws[f"J{r}"].number_format = '0.00'
-        ws[f"P{r}"].number_format = '0.00'
-        ws[f"Q{r}"].number_format = '0.00'
-        ws[f"R{r}"].number_format = '0.00'
-
-    for cell in ["V2", "V3", "V4", "V5", "V6"]:
-        ws[cell].number_format = '0.00'
+        for r in range(2, last_row + 1):
+            if r == spy_row_num:
+                ws[f"{scol}{r}"] = "Benchmark"
+            else:
+                ws[f"{scol}{r}"] = (
+                    f'=IF(OR({pcol}{r}="",{ncol}{r}="",{price_col}{r}="",{sma_col}{r}="",{dist_col}{r}=""),"",'
+                    f'IF(AND({pcol}{r}<$V$3,{price_col}{r}>{sma_col}{r},{dist_col}{r}<$V$4),"BUY",'
+                    f'IF(AND({ncol}{r}>=$V$5,{dist_col}{r}>$V$6),"SELL","")))'
+                )
 
     wb.save(excel_file)
 
@@ -516,20 +537,20 @@ def save_outputs(
     df,
     excel_file="risk_analysis.xlsx",
     txt_file="risk_analysis.txt",
+    selected_sma=200,
     buy_rsi_dist_max=-10,
-    buy_dist_200_max=10,
-    buy_dist_150_max=5,
+    buy_dist_selected_sma_max=10,
     sell_rsi_min=70,
-    sell_dist_150_min=50
+    sell_dist_selected_sma_min=50
 ):
     df.to_excel(excel_file, index=False)
     apply_excel_formulas(
         excel_file,
+        selected_sma=selected_sma,
         buy_rsi_dist_max=buy_rsi_dist_max,
-        buy_dist_200_max=buy_dist_200_max,
-        buy_dist_150_max=buy_dist_150_max,
+        buy_dist_selected_sma_max=buy_dist_selected_sma_max,
         sell_rsi_min=sell_rsi_min,
-        sell_dist_150_min=sell_dist_150_min
+        sell_dist_selected_sma_min=sell_dist_selected_sma_min
     )
 
     with open(txt_file, "w", encoding="utf-8") as f:
