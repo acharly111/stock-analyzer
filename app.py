@@ -335,17 +335,34 @@ with data_tab:
             "symbol",
             "risk_level",
             "Strong_vs_SPY",
+            "next_earnings_date",
             "BUY/SELL signal"
         ]].copy()
-        summary_df.columns = ["Name", "Risk_level", "stock_vs_spy", "BUY/SELL"]
+        summary_df.columns = ["Name", "Risk_level", "stock_vs_spy", "Next earning", "BUY/SELL"]
+
+        today = pd.Timestamp.today().normalize()
 
         summary_rows_html = ""
         for _, row in summary_df.iterrows():
+            earnings_text = ""
+            earnings_style = ""
+
+            if pd.notna(row["Next earning"]) and str(row["Next earning"]).strip():
+                earnings_text = str(row["Next earning"]).strip()
+                try:
+                    earnings_dt = pd.Timestamp(earnings_text).normalize()
+                    days_to_earnings = (earnings_dt - today).days
+                    if 0 <= days_to_earnings < 7:
+                        earnings_style = 'background-color:#f8d7da;'
+                except Exception:
+                    pass
+
             summary_rows_html += f"""
             <tr>
                 <td>{html.escape(str(row['Name']) if pd.notna(row['Name']) else '')}</td>
                 <td>{html.escape(str(row['Risk_level']) if pd.notna(row['Risk_level']) else '')}</td>
                 <td>{html.escape(str(row['stock_vs_spy']) if pd.notna(row['stock_vs_spy']) else '')}</td>
+                <td style="{earnings_style}">{html.escape(earnings_text)}</td>
                 <td>{html.escape(str(row['BUY/SELL']) if pd.notna(row['BUY/SELL']) else '')}</td>
             </tr>
             """
@@ -381,6 +398,7 @@ with data_tab:
                         <th>Name</th>
                         <th>Risk_level</th>
                         <th>stock_vs_spy</th>
+                        <th>Next earning</th>
                         <th>BUY/SELL</th>
                     </tr>
                 </thead>

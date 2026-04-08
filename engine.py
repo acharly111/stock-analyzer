@@ -63,6 +63,94 @@ def calc_pct_change(start_value, end_value):
     return round(((end_value / start_value) - 1) * 100, 2)
 
 
+def _normalize_earnings_date(value):
+    if value is None:
+        return None
+    try:
+        ts = pd.Timestamp(value)
+        if pd.isna(ts):
+            return None
+        if ts.tzinfo is not None:
+            ts = ts.tz_convert(None)
+        return ts.normalize()
+    except Exception:
+        return None
+
+
+def get_next_earnings_date(symbol):
+    """
+    Try to get the next future earnings date from Yahoo via yfinance.
+    Returns 'YYYY-MM-DD' or None.
+    """
+    try:
+        ticker = yf.Ticker(symbol)
+
+        # First try get_earnings_dates()
+        try:
+            edf = ticker.get_earnings_dates(limit=12)
+            if edf is not None and not edf.empty:
+                today = pd.Timestamp.today().normalize()
+
+                dates = []
+                for idx in edf.index:
+                    ts = _normalize_earnings_date(idx)
+                    if ts is not None and ts >= today:
+                        dates.append(ts)
+
+                if dates:
+                    return min(dates).strftime("%Y-%m-%d")
+        except Exception:
+            pass
+
+        # Fallback to calendar
+        try:
+            cal = ticker.calendar
+
+            if isinstance(cal, dict):
+                earnings_value = cal.get("Earnings Date")
+                if isinstance(earnings_value, (list, tuple)):
+                    dates = []
+                    today = pd.Timestamp.today().normalize()
+                    for item in earnings_value:
+                        ts = _normalize_earnings_date(item)
+                        if ts is not None and ts >= today:
+                            dates.append(ts)
+                    if dates:
+                        return min(dates).strftime("%Y-%m-%d")
+                else:
+                    ts = _normalize_earnings_date(earnings_value)
+                    if ts is not None:
+                        return ts.strftime("%Y-%m-%d")
+
+            if isinstance(cal, pd.DataFrame) and not cal.empty:
+                today = pd.Timestamp.today().normalize()
+
+                # Try index
+                dates = []
+                for idx in cal.index:
+                    ts = _normalize_earnings_date(idx)
+                    if ts is not None and ts >= today:
+                        dates.append(ts)
+
+                # Try cells if index fails
+                if not dates:
+                    for col in cal.columns:
+                        for item in cal[col].tolist():
+                            ts = _normalize_earnings_date(item)
+                            if ts is not None and ts >= today:
+                                dates.append(ts)
+
+                if dates:
+                    return min(dates).strftime("%Y-%m-%d")
+        except Exception:
+            pass
+
+    except Exception:
+        pass
+
+    return None
+
+
 def analyze_stocks(tickers):
     results = []
 
@@ -76,6 +164,8 @@ def analyze_stocks(tickers):
                 auto_adjust=False,
                 group_by="column"
             )
+
+            next_earnings_date = get_next_earnings_date(ticker)
 
             if data.empty:
                 results.append({
@@ -103,6 +193,7 @@ def analyze_stocks(tickers):
                     "Price_dist_%_from_SMA_100": None,
                     "Price_dist_%_from_SMA_150": None,
                     "Price_dist_%_from_SMA_200": None,
+                    "next_earnings_date": next_earnings_date,
                     "BUY/SELL signal": None,
                 })
                 continue
@@ -167,6 +258,7 @@ def analyze_stocks(tickers):
                     "Price_dist_%_from_SMA_100": None,
                     "Price_dist_%_from_SMA_150": None,
                     "Price_dist_%_from_SMA_200": None,
+                    "next_earnings_date": next_earnings_date,
                     "BUY/SELL signal": None,
                 })
                 continue
@@ -212,6 +304,7 @@ def analyze_stocks(tickers):
                 "Price_dist_%_from_SMA_100": price_dist[100],
                 "Price_dist_%_from_SMA_150": price_dist[150],
                 "Price_dist_%_from_SMA_200": price_dist[200],
+                "next_earnings_date": next_earnings_date,
                 "BUY/SELL signal": None,
             })
 
@@ -241,6 +334,7 @@ def analyze_stocks(tickers):
                 "Price_dist_%_from_SMA_100": None,
                 "Price_dist_%_from_SMA_150": None,
                 "Price_dist_%_from_SMA_200": None,
+                "next_earnings_date": None,
                 "BUY/SELL signal": None,
             })
 
@@ -325,6 +419,7 @@ def get_spy_row():
             "Price_dist_%_from_SMA_100": price_dist[100],
             "Price_dist_%_from_SMA_150": price_dist[150],
             "Price_dist_%_from_SMA_200": price_dist[200],
+            "next_earnings_date": None,
             "BUY/SELL signal": None,
         }
 
@@ -354,6 +449,7 @@ def get_spy_row():
             "Price_dist_%_from_SMA_100": None,
             "Price_dist_%_from_SMA_150": None,
             "Price_dist_%_from_SMA_200": None,
+            "next_earnings_date": None,
             "BUY/SELL signal": None,
         }
 
@@ -364,7 +460,7 @@ def fill_gui_columns(
     buy_rsi_dist_max=-10,
     buy_dist_selected_sma_max=10,
     sell_rsi_min=70,
-    sell_dist_selected_sma_min=50
+    sell_dist_selected_sma_min=40
 ):
     df = df.copy()
 
@@ -438,7 +534,7 @@ def build_output(
     buy_rsi_dist_max=-10,
     buy_dist_selected_sma_max=10,
     sell_rsi_min=70,
-    sell_dist_selected_sma_min=50
+    sell_dist_selected_sma_min=40
 ):
     df = analyze_stocks(tickers)
     spy_row = get_spy_row()
@@ -462,7 +558,7 @@ def apply_excel_formulas(
     buy_rsi_dist_max=-10,
     buy_dist_selected_sma_max=10,
     sell_rsi_min=70,
-    sell_dist_selected_sma_min=50
+    sell_dist_selected_sma_min=40
 ):
     wb = load_workbook(excel_file)
     ws = wb.active
@@ -484,7 +580,6 @@ def apply_excel_formulas(
     ws["U6"] = f"SELL: Price dist from SMA{selected_sma} min (%)"
     ws["V6"] = sell_dist_selected_sma_min
 
-    # Optional helper formulas only if columns exist
     if "Change_%_03_09_to_04_02" in headers:
         c = ws.cell(1, headers["Change_%_03_09_to_04_02"]).column_letter
         fcol = ws.cell(1, headers["Close_2026_03_09"]).column_letter
@@ -541,7 +636,7 @@ def save_outputs(
     buy_rsi_dist_max=-10,
     buy_dist_selected_sma_max=10,
     sell_rsi_min=70,
-    sell_dist_selected_sma_min=50
+    sell_dist_selected_sma_min=40
 ):
     df.to_excel(excel_file, index=False)
     apply_excel_formulas(
