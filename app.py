@@ -9,10 +9,33 @@ st.set_page_config(page_title="Stock Analyzer", layout="centered")
 st.title("Stock Analyzer")
 
 
+# -----------------------------
+# Helpers
+# -----------------------------
 def to_scalar(x):
     if isinstance(x, pd.Series):
         return x.iloc[0]
     return x
+
+
+def clean_cell(x):
+    if pd.isna(x):
+        return ""
+    return html.escape(str(x)).replace("\n", "<br>")
+
+
+def format_catalyst(text):
+    if pd.isna(text):
+        return ""
+    text = str(text)
+    parts = text.split("\n", 1)
+
+    first_line = html.escape(parts[0])
+    rest = html.escape(parts[1]) if len(parts) > 1 else ""
+
+    if rest:
+        return f"<b>{first_line}</b><br>{rest.replace(chr(10), '<br>')}"
+    return f"<b>{first_line}</b>"
 
 
 def calculate_rsi_and_ma(data):
@@ -34,7 +57,7 @@ def get_market_snapshot():
     try:
         spy = yf.download(
             "SPY",
-            period="1y",
+            period="2y",
             interval="1d",
             progress=False,
             auto_adjust=False,
@@ -43,7 +66,7 @@ def get_market_snapshot():
 
         vix = yf.download(
             "^VIX",
-            period="3mo",
+            period="6mo",
             interval="1d",
             progress=False,
             auto_adjust=False,
@@ -55,15 +78,30 @@ def get_market_snapshot():
         if isinstance(vix.columns, pd.MultiIndex):
             vix.columns = vix.columns.get_level_values(0)
 
+        if spy.empty:
+            return {
+                "error": "SPY data is empty.",
+                "SPY_price": None,
+                "SPY_dist_200": None,
+                "SPY_RSI": None,
+                "SPY_RSI_dist_MA14": None,
+                "VIX": None,
+            }
+
         spy = calculate_rsi_and_ma(spy)
 
-        spy_price = float(to_scalar(spy["Close"].iloc[-1]))
-        spy_sma_200 = float(to_scalar(spy["SMA_200"].iloc[-1])) if pd.notna(to_scalar(spy["SMA_200"].iloc[-1])) else None
-        spy_rsi = float(to_scalar(spy["RSI_14"].iloc[-1])) if pd.notna(to_scalar(spy["RSI_14"].iloc[-1])) else None
-        spy_rsi_ma = float(to_scalar(spy["RSI_MA_14"].iloc[-1])) if pd.notna(to_scalar(spy["RSI_MA_14"].iloc[-1])) else None
+        spy_price_raw = to_scalar(spy["Close"].iloc[-1])
+        spy_sma_200_raw = to_scalar(spy["SMA_200"].iloc[-1])
+        spy_rsi_raw = to_scalar(spy["RSI_14"].iloc[-1])
+        spy_rsi_ma_raw = to_scalar(spy["RSI_MA_14"].iloc[-1])
+
+        spy_price = float(spy_price_raw) if pd.notna(spy_price_raw) else None
+        spy_sma_200 = float(spy_sma_200_raw) if pd.notna(spy_sma_200_raw) else None
+        spy_rsi = float(spy_rsi_raw) if pd.notna(spy_rsi_raw) else None
+        spy_rsi_ma = float(spy_rsi_ma_raw) if pd.notna(spy_rsi_ma_raw) else None
 
         spy_dist_200 = None
-        if spy_sma_200 not in [None, 0]:
+        if spy_price is not None and spy_sma_200 not in [None, 0]:
             spy_dist_200 = ((spy_price / spy_sma_200) - 1) * 100
 
         spy_rsi_dist = None
@@ -71,11 +109,14 @@ def get_market_snapshot():
             spy_rsi_dist = ((spy_rsi / spy_rsi_ma) - 1) * 100
 
         vix_value = None
-        if not vix.empty and pd.notna(to_scalar(vix["Close"].iloc[-1])):
-            vix_value = float(to_scalar(vix["Close"].iloc[-1]))
+        if not vix.empty:
+            vix_raw = to_scalar(vix["Close"].iloc[-1])
+            if pd.notna(vix_raw):
+                vix_value = float(vix_raw)
 
         return {
-            "SPY_price": round(spy_price, 2),
+            "error": "",
+            "SPY_price": round(spy_price, 2) if spy_price is not None else None,
             "SPY_dist_200": round(spy_dist_200, 2) if spy_dist_200 is not None else None,
             "SPY_RSI": round(spy_rsi, 2) if spy_rsi is not None else None,
             "SPY_RSI_dist_MA14": round(spy_rsi_dist, 2) if spy_rsi_dist is not None else None,
@@ -132,72 +173,153 @@ def market_status_vix(value, fear=30.0, no_fear=20.0):
     return f"{value:.2f} + Mid Fear", ""
 
 
-def clean_cell(x):
-    if pd.isna(x):
-        return ""
-    return html.escape(str(x)).replace("\n", "<br>")
+# -----------------------------
+# Session defaults
+# -----------------------------
+defaults = {
+    # Stock params
+    "buy_rsi_dist_max": -10.0,
+    "buy_dist_200_max": 10.0,
+    "buy_dist_150_max": 5.0,
+    "sell_rsi_min": 70.0,
+    "sell_dist_150_min": 50.0,
+
+    # Market params
+    "spy_dist_overbought": 10.0,
+    "spy_dist_oversold": -10.0,
+    "rsi_overbought": 69.0,
+    "rsi_oversold": 35.0,
+    "rsi_dist_overbought": 20.0,
+    "rsi_dist_oversold": -20.0,
+    "vix_fear": 30.0,
+    "vix_no_fear": 20.0,
+}
+for k, v in defaults.items():
+    if k not in st.session_state:
+        st.session_state[k] = v
 
 
-def format_catalyst(text):
-    if pd.isna(text):
-        return ""
-    text = str(text)
-    parts = text.split("\n", 1)
+# -----------------------------
+# Load master stock list
+# -----------------------------
+try:
+    master_df = pd.read_csv("stocks_master.csv", encoding="latin1", engine="python")
+    master_df.columns = master_df.columns.str.strip()
+    if "Industruy" in master_df.columns:
+        master_df = master_df.rename(columns={"Industruy": "Industry"})
+except Exception as e:
+    st.error(f"Error loading CSV: {e}")
+    master_df = pd.DataFrame(columns=["Ticker", "Company", "Industry", "Catalyst"])
 
-    first_line = html.escape(parts[0])
-    rest = html.escape(parts[1]) if len(parts) > 1 else ""
 
-    if rest:
-        return f"<b>{first_line}</b><br>{rest.replace(chr(10), '<br>')}"
-    return f"<b>{first_line}</b>"
+# -----------------------------
+# Tabs
+# -----------------------------
+dashboard_tab, params_tab = st.tabs(["Dashboard", "Parameters"])
 
 
-market_tab, stocks_tab = st.tabs(["Market Condition", "Stocks & Analysis"])
+with params_tab:
+    st.subheader("Market Condition Parameters")
 
-with market_tab:
+    st.number_input(
+        "SPY distance from 200SMA: overbought above (%)",
+        key="spy_dist_overbought"
+    )
+    st.number_input(
+        "SPY distance from 200SMA: oversold below (%)",
+        key="spy_dist_oversold"
+    )
+
+    st.number_input(
+        "RSI: overbought above",
+        key="rsi_overbought"
+    )
+    st.number_input(
+        "RSI: oversold below",
+        key="rsi_oversold"
+    )
+
+    st.number_input(
+        "RSI distance from 14MA: overbought above (%)",
+        key="rsi_dist_overbought"
+    )
+    st.number_input(
+        "RSI distance from 14MA: oversold below (%)",
+        key="rsi_dist_oversold"
+    )
+
+    st.number_input(
+        "VIX: Fear above",
+        key="vix_fear"
+    )
+    st.number_input(
+        "VIX: No Fear below",
+        key="vix_no_fear"
+    )
+
+    st.divider()
+
+    st.subheader("Stock Analysis Parameters")
+
+    st.number_input(
+        "BUY: RSI distance max (%)",
+        key="buy_rsi_dist_max"
+    )
+    st.number_input(
+        "BUY: Price dist from 200SMA max (%)",
+        key="buy_dist_200_max"
+    )
+    st.number_input(
+        "BUY: Price dist from 150SMA max (%)",
+        key="buy_dist_150_max"
+    )
+    st.number_input(
+        "SELL: RSI min",
+        key="sell_rsi_min"
+    )
+    st.number_input(
+        "SELL: Price dist from 150SMA min (%)",
+        key="sell_dist_150_min"
+    )
+
+    st.info("These parameters are applied immediately to the dashboard after refresh or rerun.")
+
+
+with dashboard_tab:
     st.subheader("General Market Condition")
 
-    col1, col2 = st.columns(2)
-
-    with col1:
-        spy_dist_overbought = st.number_input("SPY dist from 200SMA: overbought above (%)", value=10.0)
-        spy_dist_oversold = st.number_input("SPY dist from 200SMA: oversold below (%)", value=-10.0)
-        rsi_overbought = st.number_input("RSI: overbought above", value=69.0)
-        rsi_oversold = st.number_input("RSI: oversold below", value=35.0)
-
-    with col2:
-        rsi_dist_overbought = st.number_input("RSI dist from 14MA: overbought above (%)", value=20.0)
-        rsi_dist_oversold = st.number_input("RSI dist from 14MA: oversold below (%)", value=-20.0)
-        vix_fear = st.number_input("VIX: Fear above", value=30.0)
-        vix_no_fear = st.number_input("VIX: No Fear below", value=20.0)
+    refresh_col1, refresh_col2 = st.columns([1, 3])
+    with refresh_col1:
+        if st.button("Refresh Market Data", use_container_width=True):
+            st.rerun()
 
     market_data = get_market_snapshot()
 
-    if "error" in market_data and market_data["error"]:
+    if market_data.get("error"):
         st.error(f"Market data error: {market_data['error']}")
 
     spy_dist_text, spy_dist_color = market_status_spy_dist(
         market_data["SPY_dist_200"],
-        overbought=spy_dist_overbought,
-        oversold=spy_dist_oversold
+        overbought=st.session_state["spy_dist_overbought"],
+        oversold=st.session_state["spy_dist_oversold"]
     )
 
     rsi_text, rsi_color = market_status_rsi(
         market_data["SPY_RSI"],
-        overbought=rsi_overbought,
-        oversold=rsi_oversold
+        overbought=st.session_state["rsi_overbought"],
+        oversold=st.session_state["rsi_oversold"]
     )
 
     rsi_dist_text, rsi_dist_color = market_status_rsi_dist(
         market_data["SPY_RSI_dist_MA14"],
-        overbought=rsi_dist_overbought,
-        oversold=rsi_dist_oversold
+        overbought=st.session_state["rsi_dist_overbought"],
+        oversold=st.session_state["rsi_dist_oversold"]
     )
 
     vix_text, _ = market_status_vix(
         market_data["VIX"],
-        fear=vix_fear,
-        no_fear=vix_no_fear
+        fear=st.session_state["vix_fear"],
+        no_fear=st.session_state["vix_no_fear"]
     )
 
     market_rows = [
@@ -260,18 +382,7 @@ with market_tab:
         unsafe_allow_html=True
     )
 
-with stocks_tab:
-    # ---------- First page: stock master table ----------
-    try:
-        master_df = pd.read_csv("stocks_master.csv", encoding="latin1", engine="python")
-        master_df.columns = master_df.columns.str.strip()
-
-        if "Industruy" in master_df.columns:
-            master_df = master_df.rename(columns={"Industruy": "Industry"})
-
-    except Exception as e:
-        st.error(f"Error loading CSV: {e}")
-        master_df = pd.DataFrame(columns=["Ticker", "Company", "Industry", "Catalyst"])
+    st.divider()
 
     st.subheader("Stock List")
 
@@ -366,14 +477,6 @@ with stocks_tab:
         height=140
     )
 
-    st.subheader("Parameters")
-
-    buy_rsi_dist_max = st.number_input("BUY: RSI distance max (%)", value=-10.0, key="buy_rsi_dist_max")
-    buy_dist_200_max = st.number_input("BUY: Price dist from 200SMA max (%)", value=10.0, key="buy_dist_200_max")
-    buy_dist_150_max = st.number_input("BUY: Price dist from 150SMA max (%)", value=5.0, key="buy_dist_150_max")
-    sell_rsi_min = st.number_input("SELL: RSI min", value=70.0, key="sell_rsi_min")
-    sell_dist_150_min = st.number_input("SELL: Price dist from 150SMA min (%)", value=50.0, key="sell_dist_150_min")
-
     run_button = st.button("Run analysis", use_container_width=True)
 
     if run_button:
@@ -382,11 +485,11 @@ with stocks_tab:
         with st.spinner("Running analysis..."):
             df = build_output(
                 tickers,
-                buy_rsi_dist_max=buy_rsi_dist_max,
-                buy_dist_200_max=buy_dist_200_max,
-                buy_dist_150_max=buy_dist_150_max,
-                sell_rsi_min=sell_rsi_min,
-                sell_dist_150_min=sell_dist_150_min
+                buy_rsi_dist_max=st.session_state["buy_rsi_dist_max"],
+                buy_dist_200_max=st.session_state["buy_dist_200_max"],
+                buy_dist_150_max=st.session_state["buy_dist_150_max"],
+                sell_rsi_min=st.session_state["sell_rsi_min"],
+                sell_dist_150_min=st.session_state["sell_dist_150_min"]
             )
 
         st.success("Analysis complete")
@@ -423,11 +526,11 @@ with stocks_tab:
             df,
             excel_file=temp_excel_name,
             txt_file=temp_txt_name,
-            buy_rsi_dist_max=buy_rsi_dist_max,
-            buy_dist_200_max=buy_dist_200_max,
-            buy_dist_150_max=buy_dist_150_max,
-            sell_rsi_min=sell_rsi_min,
-            sell_dist_150_min=sell_dist_150_min
+            buy_rsi_dist_max=st.session_state["buy_rsi_dist_max"],
+            buy_dist_200_max=st.session_state["buy_dist_200_max"],
+            buy_dist_150_max=st.session_state["buy_dist_150_max"],
+            sell_rsi_min=st.session_state["sell_rsi_min"],
+            sell_dist_150_min=st.session_state["sell_dist_150_min"]
         )
 
         with open(temp_excel_name, "rb") as f:
