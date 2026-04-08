@@ -170,7 +170,7 @@ defaults = {
     "buy_rsi_dist_max": -10.0,
     "buy_dist_selected_sma_max": 10.0,
     "sell_rsi_min": 70.0,
-    "sell_dist_selected_sma_min": 50.0,
+    "sell_dist_selected_sma_min": 40.0,
     "spy_dist_overbought": 10.0,
     "spy_dist_oversold": -10.0,
     "rsi_overbought": 69.0,
@@ -337,10 +337,60 @@ with data_tab:
             "Strong_vs_SPY",
             "BUY/SELL signal"
         ]].copy()
-        summary_df.columns = ["Name", "Risk_level", "strong_vs_SPY", "BUY/SELL"]
+        summary_df.columns = ["Name", "Risk_level", "stock_vs_spy", "BUY/SELL"]
+
+        summary_rows_html = ""
+        for _, row in summary_df.iterrows():
+            summary_rows_html += f"""
+            <tr>
+                <td>{html.escape(str(row['Name']) if pd.notna(row['Name']) else '')}</td>
+                <td>{html.escape(str(row['Risk_level']) if pd.notna(row['Risk_level']) else '')}</td>
+                <td>{html.escape(str(row['stock_vs_spy']) if pd.notna(row['stock_vs_spy']) else '')}</td>
+                <td>{html.escape(str(row['BUY/SELL']) if pd.notna(row['BUY/SELL']) else '')}</td>
+            </tr>
+            """
 
         st.subheader("Summary")
-        st.dataframe(summary_df, use_container_width=True, hide_index=True)
+        st.markdown(
+            f"""
+            <style>
+            .summary-table {{
+                width: 100%;
+                border-collapse: collapse;
+                table-layout: fixed;
+                font-size: 14px;
+                margin-bottom: 16px;
+            }}
+            .summary-table th, .summary-table td {{
+                border: 1px solid #ddd;
+                padding: 10px;
+                text-align: center;
+                vertical-align: middle;
+                word-wrap: break-word;
+            }}
+            .summary-table th {{
+                background-color: #dbeafe;
+                color: #1e3a8a;
+                font-weight: 700;
+            }}
+            </style>
+
+            <table class="summary-table">
+                <thead>
+                    <tr>
+                        <th>Name</th>
+                        <th>Risk_level</th>
+                        <th>stock_vs_spy</th>
+                        <th>BUY/SELL</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {summary_rows_html}
+                </tbody>
+            </table>
+            """,
+            unsafe_allow_html=True
+        )
 
         full_df = df.drop(columns=["risk_level", "Strong_vs_SPY"], errors="ignore")
 
