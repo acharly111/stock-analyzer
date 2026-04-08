@@ -2,6 +2,8 @@ import streamlit as st
 import pandas as pd
 import html
 import yfinance as yf
+import tempfile
+import os
 from engine import build_output, save_outputs
 
 st.set_page_config(page_title="Stock Analyzer", layout="centered")
@@ -164,6 +166,39 @@ def market_status_vix(value, fear=30.0, no_fear=20.0):
     return f"{value:.2f} Mid Fear", ""
 
 
+def build_excel_bytes(df):
+    excel_tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".xlsx")
+    excel_tmp.close()
+
+    txt_tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".txt")
+    txt_tmp.close()
+
+    try:
+        save_outputs(
+            df,
+            excel_file=excel_tmp.name,
+            txt_file=txt_tmp.name,
+            selected_sma=st.session_state["selected_sma"],
+            buy_rsi_dist_max=st.session_state["buy_rsi_dist_max"],
+            buy_dist_selected_sma_max=st.session_state["buy_dist_selected_sma_max"],
+            sell_rsi_min=st.session_state["sell_rsi_min"],
+            sell_dist_selected_sma_min=st.session_state["sell_dist_selected_sma_min"]
+        )
+
+        with open(excel_tmp.name, "rb") as f:
+            return f.read()
+
+    finally:
+        try:
+            os.remove(excel_tmp.name)
+        except Exception:
+            pass
+        try:
+            os.remove(txt_tmp.name)
+        except Exception:
+            pass
+
+
 # ---------- Session defaults ----------
 defaults = {
     "selected_sma": 200,
@@ -183,6 +218,9 @@ defaults = {
 for k, v in defaults.items():
     if k not in st.session_state:
         st.session_state[k] = v
+
+if "analysis_df" not in st.session_state:
+    st.session_state["analysis_df"] = None
 
 
 # ---------- Tabs ----------
@@ -329,7 +367,11 @@ with data_tab:
                 sell_dist_selected_sma_min=st.session_state["sell_dist_selected_sma_min"]
             )
 
+        st.session_state["analysis_df"] = df
         st.success("Analysis complete")
+
+    if st.session_state["analysis_df"] is not None:
+        df = st.session_state["analysis_df"]
 
         summary_df = df[[
             "symbol",
@@ -424,30 +466,18 @@ with data_tab:
             use_container_width=True
         )
 
-        temp_excel_name = "risk_analysis_streamlit.xlsx"
-        temp_txt_name = "risk_analysis_streamlit.txt"
-
-        save_outputs(
-            df,
-            excel_file=temp_excel_name,
-            txt_file=temp_txt_name,
-            selected_sma=st.session_state["selected_sma"],
-            buy_rsi_dist_max=st.session_state["buy_rsi_dist_max"],
-            buy_dist_selected_sma_max=st.session_state["buy_dist_selected_sma_max"],
-            sell_rsi_min=st.session_state["sell_rsi_min"],
-            sell_dist_selected_sma_min=st.session_state["sell_dist_selected_sma_min"]
-        )
-
-        with open(temp_excel_name, "rb") as f:
-            excel_bytes = f.read()
-
-        st.download_button(
-            "Download Excel",
-            data=excel_bytes,
-            file_name="risk_analysis.xlsx",
-            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-            use_container_width=True
-        )
+        if st.button("Prepare Excel download", use_container_width=True):
+            try:
+                excel_bytes = build_excel_bytes(df)
+                st.download_button(
+                    "Download Excel",
+                    data=excel_bytes,
+                    file_name="risk_analysis.xlsx",
+                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    use_container_width=True
+                )
+            except Exception as e:
+                st.error(f"Excel file could not be created: {e}")
 
 
 with params_tab:
