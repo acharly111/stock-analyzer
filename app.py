@@ -4,6 +4,7 @@ import html
 import yfinance as yf
 import tempfile
 import os
+from datetime import date
 from engine import build_output, save_outputs
 
 st.set_page_config(page_title="Stock Analyzer", layout="centered")
@@ -214,6 +215,8 @@ defaults = {
     "rsi_dist_oversold": -20.0,
     "vix_fear": 30.0,
     "vix_no_fear": 20.0,
+    "start_date": date(2026, 3, 9),
+    "low_date": date(2026, 3, 30),
 }
 for k, v in defaults.items():
     if k not in st.session_state:
@@ -388,7 +391,9 @@ with data_tab:
                 buy_rsi_dist_max=st.session_state["buy_rsi_dist_max"],
                 buy_dist_selected_sma_max=st.session_state["buy_dist_selected_sma_max"],
                 sell_rsi_min=st.session_state["sell_rsi_min"],
-                sell_dist_selected_sma_min=st.session_state["sell_dist_selected_sma_min"]
+                sell_dist_selected_sma_min=st.session_state["sell_dist_selected_sma_min"],
+                start_date=st.session_state["start_date"],
+                low_date=st.session_state["low_date"]
             )
 
         st.session_state["analysis_df"] = df
@@ -505,6 +510,22 @@ with data_tab:
 
 
 with params_tab:
+    st.subheader("Analysis Dates")
+
+    st.session_state["start_date"] = st.date_input(
+        "Start Date",
+        value=st.session_state["start_date"]
+    )
+
+    st.session_state["low_date"] = st.date_input(
+        "Low Date",
+        value=st.session_state["low_date"]
+    )
+
+    st.markdown(f"**Today:** {date.today()}")
+
+    st.divider()
+
     st.subheader("Market Parameters")
 
     st.session_state["spy_dist_overbought"] = st.number_input(

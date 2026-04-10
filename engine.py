@@ -61,7 +61,10 @@ def to_scalar(x):
 
 
 def get_close_on_date(data, target_date):
-    target_date = pd.Timestamp(target_date)
+    if target_date is None:
+        return None
+
+    target_date = pd.Timestamp(target_date).normalize()
 
     if data.empty:
         return None
@@ -105,7 +108,6 @@ def _fetch_next_earnings_date_from_yahoo(symbol):
     try:
         ticker = yf.Ticker(symbol)
 
-        # First try get_earnings_dates()
         try:
             edf = ticker.get_earnings_dates(limit=12)
             if edf is not None and not edf.empty:
@@ -122,7 +124,6 @@ def _fetch_next_earnings_date_from_yahoo(symbol):
         except Exception:
             pass
 
-        # Fallback to calendar
         try:
             cal = ticker.calendar
 
@@ -171,14 +172,6 @@ def _fetch_next_earnings_date_from_yahoo(symbol):
 
 
 def get_next_earnings_date(symbol):
-    """
-    Reuse cached next earnings date unless:
-    - there is no cached date
-    - cached date is within 21 days
-    - cached date already passed
-
-    If refresh fails, keep cached date if it exists.
-    """
     cache = load_earnings_cache()
     today = pd.Timestamp.today().normalize()
 
@@ -188,7 +181,6 @@ def get_next_earnings_date(symbol):
         try:
             cached_ts = pd.Timestamp(cached_date_str).normalize()
             days_to_cached = (cached_ts - today).days
-
             if days_to_cached > 21:
                 return cached_date_str
         except Exception:
@@ -207,8 +199,10 @@ def get_next_earnings_date(symbol):
     return None
 
 
-def analyze_stocks(tickers):
+def analyze_stocks(tickers, start_date=None, low_date=None):
     results = []
+
+    today_date = pd.Timestamp.today().normalize()
 
     for ticker in tickers:
         try:
@@ -230,11 +224,11 @@ def analyze_stocks(tickers):
                     "ATR_14": None,
                     "ATR_pct": None,
                     "risk_level": "No Data",
-                    "Close_2026_03_09": None,
-                    "Close_2026_03_30": None,
-                    "Close_2026_04_02": None,
-                    "Change_%_03_09_to_04_02": None,
-                    "Change_%_03_30_to_04_02": None,
+                    "Close_Start_Date": None,
+                    "Close_Low_Date": None,
+                    "Current_Price": None,
+                    "Change_%_Start_to_Today": None,
+                    "Change_%_Low_to_Today": None,
                     "Strong_vs_SPY": None,
                     "SMA_20": None,
                     "SMA_50": None,
@@ -284,9 +278,9 @@ def analyze_stocks(tickers):
             rsi_14 = to_scalar(data["RSI_14"].iloc[-1])
             rsi_ma_14 = to_scalar(data["RSI_MA_14"].iloc[-1])
 
-            close_2026_03_09 = get_close_on_date(data, "2026-03-09")
-            close_2026_03_30 = get_close_on_date(data, "2026-03-30")
-            close_2026_04_02 = get_close_on_date(data, "2026-04-02")
+            close_start = get_close_on_date(data, start_date)
+            close_low = get_close_on_date(data, low_date)
+            current_price = round(float(price), 2) if pd.notna(price) else None
 
             if pd.isna(price) or pd.isna(atr) or float(price) == 0:
                 results.append({
@@ -295,11 +289,11 @@ def analyze_stocks(tickers):
                     "ATR_14": None,
                     "ATR_pct": None,
                     "risk_level": "No Data",
-                    "Close_2026_03_09": close_2026_03_09,
-                    "Close_2026_03_30": close_2026_03_30,
-                    "Close_2026_04_02": close_2026_04_02,
-                    "Change_%_03_09_to_04_02": None,
-                    "Change_%_03_30_to_04_02": None,
+                    "Close_Start_Date": close_start,
+                    "Close_Low_Date": close_low,
+                    "Current_Price": current_price,
+                    "Change_%_Start_to_Today": None,
+                    "Change_%_Low_to_Today": None,
                     "Strong_vs_SPY": None,
                     "SMA_20": sma_vals[20],
                     "SMA_50": sma_vals[50],
@@ -341,11 +335,11 @@ def analyze_stocks(tickers):
                 "ATR_14": round(atr, 2),
                 "ATR_pct": round(atr_pct * 100, 2),
                 "risk_level": risk,
-                "Close_2026_03_09": close_2026_03_09,
-                "Close_2026_03_30": close_2026_03_30,
-                "Close_2026_04_02": close_2026_04_02,
-                "Change_%_03_09_to_04_02": None,
-                "Change_%_03_30_to_04_02": None,
+                "Close_Start_Date": close_start,
+                "Close_Low_Date": close_low,
+                "Current_Price": current_price,
+                "Change_%_Start_to_Today": None,
+                "Change_%_Low_to_Today": None,
                 "Strong_vs_SPY": None,
                 "SMA_20": sma_vals[20],
                 "SMA_50": sma_vals[50],
@@ -371,11 +365,11 @@ def analyze_stocks(tickers):
                 "ATR_14": None,
                 "ATR_pct": None,
                 "risk_level": "Error",
-                "Close_2026_03_09": None,
-                "Close_2026_03_30": None,
-                "Close_2026_04_02": None,
-                "Change_%_03_09_to_04_02": None,
-                "Change_%_03_30_to_04_02": None,
+                "Close_Start_Date": None,
+                "Close_Low_Date": None,
+                "Current_Price": None,
+                "Change_%_Start_to_Today": None,
+                "Change_%_Low_to_Today": None,
                 "Strong_vs_SPY": None,
                 "SMA_20": None,
                 "SMA_50": None,
@@ -397,7 +391,7 @@ def analyze_stocks(tickers):
     return pd.DataFrame(results)
 
 
-def get_spy_row():
+def get_spy_row(start_date=None, low_date=None):
     try:
         data = yf.download(
             "SPY",
@@ -450,17 +444,20 @@ def get_spy_row():
             else:
                 price_dist[sma] = None
 
+        close_start = get_close_on_date(data, start_date)
+        close_low = get_close_on_date(data, low_date)
+
         return {
             "symbol": "SPY",
             "price": round(price, 2),
             "ATR_14": None,
             "ATR_pct": None,
             "risk_level": "Benchmark",
-            "Close_2026_03_09": get_close_on_date(data, "2026-03-09"),
-            "Close_2026_03_30": get_close_on_date(data, "2026-03-30"),
-            "Close_2026_04_02": get_close_on_date(data, "2026-04-02"),
-            "Change_%_03_09_to_04_02": None,
-            "Change_%_03_30_to_04_02": None,
+            "Close_Start_Date": close_start,
+            "Close_Low_Date": close_low,
+            "Current_Price": round(price, 2),
+            "Change_%_Start_to_Today": None,
+            "Change_%_Low_to_Today": None,
             "Strong_vs_SPY": None,
             "SMA_20": sma_vals[20],
             "SMA_50": sma_vals[50],
@@ -486,11 +483,11 @@ def get_spy_row():
             "ATR_14": None,
             "ATR_pct": None,
             "risk_level": "Benchmark",
-            "Close_2026_03_09": None,
-            "Close_2026_03_30": None,
-            "Close_2026_04_02": None,
-            "Change_%_03_09_to_04_02": None,
-            "Change_%_03_30_to_04_02": None,
+            "Close_Start_Date": None,
+            "Close_Low_Date": None,
+            "Current_Price": None,
+            "Change_%_Start_to_Today": None,
+            "Change_%_Low_to_Today": None,
             "Strong_vs_SPY": None,
             "SMA_20": None,
             "SMA_50": None,
@@ -520,13 +517,13 @@ def fill_gui_columns(
 ):
     df = df.copy()
 
-    df["Change_%_03_09_to_04_02"] = df.apply(
-        lambda row: calc_pct_change(row["Close_2026_03_09"], row["Close_2026_04_02"]),
+    df["Change_%_Start_to_Today"] = df.apply(
+        lambda row: calc_pct_change(row["Close_Start_Date"], row["Current_Price"]),
         axis=1
     )
 
-    df["Change_%_03_30_to_04_02"] = df.apply(
-        lambda row: calc_pct_change(row["Close_2026_03_30"], row["Close_2026_04_02"]),
+    df["Change_%_Low_to_Today"] = df.apply(
+        lambda row: calc_pct_change(row["Close_Low_Date"], row["Current_Price"]),
         axis=1
     )
 
@@ -534,17 +531,17 @@ def fill_gui_columns(
 
     spy_rows = df[df["symbol"] == "SPY"]
     if not spy_rows.empty:
-        spy_change_1 = spy_rows.iloc[0]["Change_%_03_09_to_04_02"]
-        spy_change_2 = spy_rows.iloc[0]["Change_%_03_30_to_04_02"]
+        spy_change_start = spy_rows.iloc[0]["Change_%_Start_to_Today"]
+        spy_change_low = spy_rows.iloc[0]["Change_%_Low_to_Today"]
 
         def strong_vs_spy(row):
             if row["symbol"] == "SPY":
                 return "Benchmark"
-            if pd.isna(row["Change_%_03_09_to_04_02"]) or pd.isna(row["Change_%_03_30_to_04_02"]):
+            if pd.isna(row["Change_%_Start_to_Today"]) or pd.isna(row["Change_%_Low_to_Today"]):
                 return ""
-            if pd.isna(spy_change_1) or pd.isna(spy_change_2):
+            if pd.isna(spy_change_start) or pd.isna(spy_change_low):
                 return ""
-            if row["Change_%_03_09_to_04_02"] > spy_change_1 and row["Change_%_03_30_to_04_02"] > spy_change_2:
+            if row["Change_%_Start_to_Today"] > spy_change_start and row["Change_%_Low_to_Today"] > spy_change_low:
                 return "Strong"
             return ""
 
@@ -590,10 +587,12 @@ def build_output(
     buy_rsi_dist_max=-10,
     buy_dist_selected_sma_max=10,
     sell_rsi_min=70,
-    sell_dist_selected_sma_min=40
+    sell_dist_selected_sma_min=40,
+    start_date=None,
+    low_date=None
 ):
-    df = analyze_stocks(tickers)
-    spy_row = get_spy_row()
+    df = analyze_stocks(tickers, start_date=start_date, low_date=low_date)
+    spy_row = get_spy_row(start_date=start_date, low_date=low_date)
     df = pd.concat([df, pd.DataFrame([spy_row])], ignore_index=True)
 
     df = fill_gui_columns(
@@ -636,31 +635,31 @@ def apply_excel_formulas(
     ws["U6"] = f"SELL: Price dist from SMA{selected_sma} min (%)"
     ws["V6"] = sell_dist_selected_sma_min
 
-    if "Change_%_03_09_to_04_02" in headers:
-        c = ws.cell(1, headers["Change_%_03_09_to_04_02"]).column_letter
-        fcol = ws.cell(1, headers["Close_2026_03_09"]).column_letter
-        hcol = ws.cell(1, headers["Close_2026_04_02"]).column_letter
+    if "Change_%_Start_to_Today" in headers:
+        c = ws.cell(1, headers["Change_%_Start_to_Today"]).column_letter
+        s_col = ws.cell(1, headers["Close_Start_Date"]).column_letter
+        t_col = ws.cell(1, headers["Current_Price"]).column_letter
         for r in range(2, last_row + 1):
-            ws[f"{c}{r}"] = f'=IF(OR({fcol}{r}="",{hcol}{r}="",{fcol}{r}=0),"",(({hcol}{r}/{fcol}{r})-1)*100)'
+            ws[f"{c}{r}"] = f'=IF(OR({s_col}{r}="",{t_col}{r}="",{s_col}{r}=0),"",(({t_col}{r}/{s_col}{r})-1)*100)'
 
-    if "Change_%_03_30_to_04_02" in headers:
-        c = ws.cell(1, headers["Change_%_03_30_to_04_02"]).column_letter
-        gcol = ws.cell(1, headers["Close_2026_03_30"]).column_letter
-        hcol = ws.cell(1, headers["Close_2026_04_02"]).column_letter
+    if "Change_%_Low_to_Today" in headers:
+        c = ws.cell(1, headers["Change_%_Low_to_Today"]).column_letter
+        l_col = ws.cell(1, headers["Close_Low_Date"]).column_letter
+        t_col = ws.cell(1, headers["Current_Price"]).column_letter
         for r in range(2, last_row + 1):
-            ws[f"{c}{r}"] = f'=IF(OR({gcol}{r}="",{hcol}{r}="",{gcol}{r}=0),"",(({hcol}{r}/{gcol}{r})-1)*100)'
+            ws[f"{c}{r}"] = f'=IF(OR({l_col}{r}="",{t_col}{r}="",{l_col}{r}=0),"",(({t_col}{r}/{l_col}{r})-1)*100)'
 
-    if "Strong_vs_SPY" in headers and "Change_%_03_09_to_04_02" in headers and "Change_%_03_30_to_04_02" in headers:
+    if "Strong_vs_SPY" in headers and "Change_%_Start_to_Today" in headers and "Change_%_Low_to_Today" in headers:
         kcol = ws.cell(1, headers["Strong_vs_SPY"]).column_letter
-        icol = ws.cell(1, headers["Change_%_03_09_to_04_02"]).column_letter
-        jcol = ws.cell(1, headers["Change_%_03_30_to_04_02"]).column_letter
+        scol = ws.cell(1, headers["Change_%_Start_to_Today"]).column_letter
+        lcol = ws.cell(1, headers["Change_%_Low_to_Today"]).column_letter
         for r in range(2, last_row + 1):
             if r == spy_row_num:
                 ws[f"{kcol}{r}"] = "Benchmark"
             else:
                 ws[f"{kcol}{r}"] = (
-                    f'=IF(OR({icol}{r}="",{jcol}{r}="",{icol}{spy_row_num}="",{jcol}{spy_row_num}=""),"",'
-                    f'IF(AND({icol}{r}>{icol}{spy_row_num},{jcol}{r}>{jcol}{spy_row_num}),"Strong",""))'
+                    f'=IF(OR({scol}{r}="",{lcol}{r}="",{scol}{spy_row_num}="",{lcol}{spy_row_num}=""),"",'
+                    f'IF(AND({scol}{r}>{scol}{spy_row_num},{lcol}{r}>{lcol}{spy_row_num}),"Strong",""))'
                 )
 
     if "BUY/SELL signal" in headers:
