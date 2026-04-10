@@ -345,12 +345,28 @@ with data_tab:
         height=140
     )
 
+    st.markdown("**Bold**&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;**Cautious**", unsafe_allow_html=True)
+
     selected_sma = st.select_slider(
         f"SMA for BUY/SELL criteria: SMA {st.session_state['selected_sma']}",
         options=[20, 50, 100, 150, 200],
         value=st.session_state["selected_sma"]
     )
     st.session_state["selected_sma"] = selected_sma
+
+    buy_dist_slider_value = st.select_slider(
+        "BUY: Price dist [%] from SMA",
+        options=[round(x, 1) for x in list(pd.Series(range(20, -1, -1)).astype(float))],
+        value=float(st.session_state["buy_dist_selected_sma_max"])
+    )
+    st.session_state["buy_dist_selected_sma_max"] = float(buy_dist_slider_value)
+
+    buy_rsi_slider_value = st.select_slider(
+        "BUY: RSI distance [%]",
+        options=[round(x, 1) for x in list(pd.Series(range(0, -21, -1)).astype(float))],
+        value=float(st.session_state["buy_rsi_dist_max"])
+    )
+    st.session_state["buy_rsi_dist_max"] = float(buy_rsi_slider_value)
 
     run_button = st.button("Run analysis", use_container_width=True)
 
@@ -523,11 +539,11 @@ with params_tab:
     st.markdown(f"Selected SMA for stock criteria: **SMA {st.session_state['selected_sma']}**")
 
     st.session_state["buy_rsi_dist_max"] = st.number_input(
-        "BUY: RSI distance max (%)",
+        "BUY: RSI distance [%]",
         value=float(st.session_state["buy_rsi_dist_max"])
     )
     st.session_state["buy_dist_selected_sma_max"] = st.number_input(
-        f"BUY: Price dist from SMA {st.session_state['selected_sma']} max (%)",
+        f"BUY: Price dist [%] from SMA {st.session_state['selected_sma']}",
         value=float(st.session_state["buy_dist_selected_sma_max"])
     )
     st.session_state["sell_rsi_min"] = st.number_input(
@@ -539,7 +555,7 @@ with params_tab:
         value=float(st.session_state["sell_dist_selected_sma_min"])
     )
 
-    st.info("Market data loads automatically on app open. Use Refresh in the first tab to force a new Yahoo fetch.")
+    st.info("The two BUY sliders on the first tab update these stock parameters automatically.")
 
 
 with stocks_tab:
