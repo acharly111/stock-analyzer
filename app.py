@@ -4,6 +4,7 @@ import html
 import yfinance as yf
 import tempfile
 import os
+import requests
 from datetime import date
 from engine import build_output, save_outputs
 
@@ -127,44 +128,127 @@ def get_market_snapshot():
     }
 
 
-def market_status_spy_dist(value, overbought=10.0, oversold=-10.0):
-    if value is None:
-        return "N/A", ""
-    if value > overbought:
-        return f"{value:.2f}% overbought", "#f8d7da"
-    if value < oversold:
-        return f"{value:.2f}% oversold", "#d4edda"
-    return f"{value:.2f}% neutral", "#fff3cd"
+@st.cache_data(ttl=300)
+def get_cnn_fear_greed():
+    """
+    Fetch CNN Fear & Greed from CNN graphdata endpoint.
+    Tries a couple of likely current shapes and falls back gracefully.
+    """
+    urls = [
+        "https://production.dataviz.cnn.io/index/fearandgreed/graphdata",
+        "https://production.dataviz.cnn.io/index/fearandgreed/graphdata/"
+    ]
+
+    headers = {
+        "User-Agent": "Mozilla/5.0",
+        "Accept": "application/json,text/plain,*/*",
+    }
+
+    last_error = None
+
+    for url in urls:
+        try:
+            resp = requests.get(url, headers=headers, timeout=10)
+            resp.raise_for_status()
+            data = resp.json()
+
+            # Common possibilities
+            # 1) direct score/value
+            candidates = [
+                data.get("fear_and_greed"),
+                data.get("fearAndGreed"),
+                data.get("score"),
+                data.get("value"),
+                data.get("market_momentum_sp500"),  # not used directly, just kept from experimentation
+            ]
+
+            # direct nested object
+            fg_obj = None
+            if isinstance(data.get("fear_and_greed"), dict):
+                fg_obj = data.get("fear_and_greed")
+            elif isinstance(data.get("fearAndGreed"), dict):
+                fg_obj = data.get("fearAndGreed")
+            elif isinstance(data.get("score"), dict):
+                fg_obj = data.get("score")
+
+            if fg_obj:
+                value = fg_obj.get("score") or fg_obj.get("value")
+                label = fg_obj.get("rating") or fg_obj.get("label") or fg_obj.get("status")
+                timestamp = fg_obj.get("timestamp") or fg_obj.get("updated") or fg_obj.get("asOf")
+                if value is not None:
+                    return {
+                        "value": float(value),
+                        "label": str(label) if label else fear_greed_label(float(value)),
+                        "timestamp": str(timestamp) if timestamp else "",
+                    }
+
+            # 2) top-level numeric
+            for c in candidates:
+                if isinstance(c, (int, float)):
+                    return {
+                        "value": float(c),
+                        "label": fear_greed_label(float(c)),
+                        "timestamp": "",
+                    }
+
+            # 3) historical series structure
+            # Look for a list under fear_and_greed_historical/data with latest point
+            hist = data.get("fear_and_greed_historical") or data.get("historical") or data.get("data")
+            if isinstance(hist, dict):
+                for key in ["data", "values"]:
+                    if isinstance(hist.get(key), list) and hist.get(key):
+                        point = hist.get(key)[-1]
+                        val = point.get("y") or point.get("value") or point.get("score")
+                        ts = point.get("x") or point.get("timestamp") or point.get("date")
+                        if val is not None:
+                            return {
+                                "value": float(val),
+                                "label": fear_greed_label(float(val)),
+                                "timestamp": str(ts) if ts else "",
+                            }
+
+            if isinstance(hist, list) and hist:
+                point = hist[-1]
+                if isinstance(point, dict):
+                    val = point.get("y") or point.get("value") or point.get("score")
+                    ts = point.get("x") or point.get("timestamp") or point.get("date")
+                    if val is not None:
+                        return {
+                            "value": float(val),
+                            "label": fear_greed_label(float(val)),
+                            "timestamp": str(ts) if ts else "",
+                        }
+
+            raise ValueError("CNN Fear & Greed format not recognized.")
+
+        except Exception as e:
+            last_error = e
+
+    raise ValueError(f"Could not fetch CNN Fear & Greed: {last_error}")
 
 
-def market_status_rsi(value, overbought=69.0, oversold=35.0):
-    if value is None:
-        return "N/A", ""
-    if value > overbought:
-        return f"{value:.2f} overbought", "#f8d7da"
-    if value < oversold:
-        return f"{value:.2f} oversold", "#d4edda"
-    return f"{value:.2f} neutral", "#fff3cd"
+def fear_greed_label(value):
+    if value < 25:
+        return "Extreme Fear"
+    if value < 45:
+        return "Fear"
+    if value <= 55:
+        return "Neutral"
+    if value < 75:
+        return "Greed"
+    return "Extreme Greed"
 
 
-def market_status_rsi_dist(value, overbought=20.0, oversold=-20.0):
-    if value is None:
-        return "N/A", ""
-    if value > overbought:
-        return f"{value:.2f}% overbought", "#f8d7da"
-    if value < oversold:
-        return f"{value:.2f}% oversold", "#d4edda"
-    return f"{value:.2f}% neutral", "#fff3cd"
-
-
-def market_status_vix(value, fear=30.0, no_fear=20.0):
-    if value is None:
-        return "N/A", ""
-    if value > fear:
-        return f"{value:.2f} Fear", ""
-    if value < no_fear:
-        return f"{value:.2f} No Fear", ""
-    return f"{value:.2f} Mid Fear", ""
+def fear_greed_color(value):
+    if value < 25:
+        return "#dc2626"   # red
+    if value < 45:
+        return "#f97316"   # orange
+    if value <= 55:
+        return "#eab308"   # yellow
+    if value < 75:
+        return "#84cc16"   # light green
+    return "#16a34a"       # green
 
 
 def build_excel_bytes(df):
@@ -236,6 +320,30 @@ with data_tab:
         st.rerun()
 
     st.subheader("General Market Condition")
+
+    # CNN Fear & Greed bar directly below heading
+    try:
+        fg = get_cnn_fear_greed()
+        fg_value = max(0.0, min(100.0, float(fg["value"])))
+        fg_label = fg.get("label") or fear_greed_label(fg_value)
+        fg_color = fear_greed_color(fg_value)
+
+        st.markdown(
+            f"""
+            <div style="margin-bottom:14px;">
+                <div style="display:flex; justify-content:space-between; font-weight:700; margin-bottom:6px;">
+                    <span>CNN Fear &amp; Greed</span>
+                    <span>{fg_value:.1f} - {html.escape(fg_label)}</span>
+                </div>
+                <div style="width:100%; height:18px; background:#e5e7eb; border-radius:999px; overflow:hidden;">
+                    <div style="width:{fg_value}%; height:100%; background:{fg_color};"></div>
+                </div>
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
+    except Exception as e:
+        st.warning(f"CNN Fear & Greed unavailable: {e}")
 
     try:
         market_data = get_market_snapshot()
@@ -510,7 +618,9 @@ with data_tab:
 
 
 with params_tab:
-    st.subheader("Analysis Dates")
+    st.subheader("Analysis D
+::contentReference[oaicite:2]{index=2}
+ates")
 
     st.session_state["start_date"] = st.date_input(
         "Start Date",
