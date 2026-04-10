@@ -345,7 +345,15 @@ with data_tab:
         height=140
     )
 
-    st.markdown("**Bold**&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;**Cautious**", unsafe_allow_html=True)
+    st.markdown(
+        """
+        <div style="display:flex; justify-content:space-between; font-weight:700; margin-bottom:6px;">
+            <span>Bold</span>
+            <span>Cautious</span>
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
 
     selected_sma = st.select_slider(
         f"SMA for BUY/SELL criteria: SMA {st.session_state['selected_sma']}",
@@ -356,14 +364,14 @@ with data_tab:
 
     buy_dist_slider_value = st.select_slider(
         "BUY: Price dist [%] from SMA",
-        options=[round(x, 1) for x in list(pd.Series(range(20, -1, -1)).astype(float))],
+        options=[float(x) for x in range(20, -1, -1)],
         value=float(st.session_state["buy_dist_selected_sma_max"])
     )
     st.session_state["buy_dist_selected_sma_max"] = float(buy_dist_slider_value)
 
     buy_rsi_slider_value = st.select_slider(
-        "BUY: RSI distance [%]",
-        options=[round(x, 1) for x in list(pd.Series(range(0, -21, -1)).astype(float))],
+        "BUY: RSI distance [%] from MA",
+        options=[float(x) for x in range(0, -21, -1)],
         value=float(st.session_state["buy_rsi_dist_max"])
     )
     st.session_state["buy_rsi_dist_max"] = float(buy_rsi_slider_value)
@@ -539,7 +547,7 @@ with params_tab:
     st.markdown(f"Selected SMA for stock criteria: **SMA {st.session_state['selected_sma']}**")
 
     st.session_state["buy_rsi_dist_max"] = st.number_input(
-        "BUY: RSI distance [%]",
+        "BUY: RSI distance [%] from MA",
         value=float(st.session_state["buy_rsi_dist_max"])
     )
     st.session_state["buy_dist_selected_sma_max"] = st.number_input(
