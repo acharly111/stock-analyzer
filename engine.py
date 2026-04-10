@@ -8,6 +8,7 @@ import os
 EARNINGS_CACHE_FILE = "earnings_cache.json"
 
 
+# ---------- Earnings cache ----------
 def load_earnings_cache():
     if not os.path.exists(EARNINGS_CACHE_FILE):
         return {}
@@ -27,6 +28,7 @@ def save_earnings_cache(cache):
         pass
 
 
+# ---------- Helpers ----------
 def calculate_atr(data, period=14):
     high = data["High"]
     low = data["Low"]
@@ -61,15 +63,12 @@ def to_scalar(x):
 
 
 def get_close_on_date(data, target_date):
-    if target_date is None:
+    if target_date is None or data.empty:
         return None
 
     target_date = pd.Timestamp(target_date).normalize()
-
-    if data.empty:
-        return None
-
     matches = data.loc[data.index.normalize() == target_date]
+
     if matches.empty:
         return None
 
@@ -104,10 +103,12 @@ def _normalize_earnings_date(value):
         return None
 
 
+# ---------- Earnings lookup ----------
 def _fetch_next_earnings_date_from_yahoo(symbol):
     try:
         ticker = yf.Ticker(symbol)
 
+        # First try get_earnings_dates
         try:
             edf = ticker.get_earnings_dates(limit=12)
             if edf is not None and not edf.empty:
@@ -124,6 +125,7 @@ def _fetch_next_earnings_date_from_yahoo(symbol):
         except Exception:
             pass
 
+        # Fallback to calendar
         try:
             cal = ticker.calendar
 
@@ -172,6 +174,11 @@ def _fetch_next_earnings_date_from_yahoo(symbol):
 
 
 def get_next_earnings_date(symbol):
+    """
+    Reuse cached date unless it is within 21 days or already passed.
+    If Yahoo refresh fails, reuse old cached value.
+    If nothing is available, return 'N/A'.
+    """
     cache = load_earnings_cache()
     today = pd.Timestamp.today().normalize()
 
@@ -181,6 +188,7 @@ def get_next_earnings_date(symbol):
         try:
             cached_ts = pd.Timestamp(cached_date_str).normalize()
             days_to_cached = (cached_ts - today).days
+
             if days_to_cached > 21:
                 return cached_date_str
         except Exception:
@@ -196,13 +204,12 @@ def get_next_earnings_date(symbol):
     if cached_date_str:
         return cached_date_str
 
-    return None
+    return "N/A"
 
 
+# ---------- Core analysis ----------
 def analyze_stocks(tickers, start_date=None, low_date=None):
     results = []
-
-    today_date = pd.Timestamp.today().normalize()
 
     for ticker in tickers:
         try:
@@ -384,7 +391,7 @@ def analyze_stocks(tickers, start_date=None, low_date=None):
                 "Price_dist_%_from_SMA_100": None,
                 "Price_dist_%_from_SMA_150": None,
                 "Price_dist_%_from_SMA_200": None,
-                "next_earnings_date": None,
+                "next_earnings_date": "N/A",
                 "BUY/SELL signal": None,
             })
 
@@ -472,7 +479,7 @@ def get_spy_row(start_date=None, low_date=None):
             "Price_dist_%_from_SMA_100": price_dist[100],
             "Price_dist_%_from_SMA_150": price_dist[150],
             "Price_dist_%_from_SMA_200": price_dist[200],
-            "next_earnings_date": None,
+            "next_earnings_date": "N/A",
             "BUY/SELL signal": None,
         }
 
@@ -502,7 +509,7 @@ def get_spy_row(start_date=None, low_date=None):
             "Price_dist_%_from_SMA_100": None,
             "Price_dist_%_from_SMA_150": None,
             "Price_dist_%_from_SMA_200": None,
-            "next_earnings_date": None,
+            "next_earnings_date": "N/A",
             "BUY/SELL signal": None,
         }
 
