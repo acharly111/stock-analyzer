@@ -103,6 +103,71 @@ def _normalize_earnings_date(value):
         return None
 
 
+def _empty_result_row(ticker, next_earnings_date="N/A", risk_level="No Data"):
+    return {
+        "symbol": ticker,
+        "price": None,
+        "ATR_14": None,
+        "ATR_pct": None,
+        "risk_level": risk_level,
+        "Close_Start_Date": None,
+        "Close_Low_Date": None,
+        "Current_Price": None,
+        "Change_%_Start_to_Today": None,
+        "Change_%_Low_to_Today": None,
+        "Strong_vs_SPY": None,
+        "SMA_20": None,
+        "SMA_50": None,
+        "SMA_100": None,
+        "SMA_150": None,
+        "SMA_200": None,
+        "RSI_14": None,
+        "RSI_MA_14": None,
+        "RSI_dist_%_from_RSI_MA_14": None,
+        "Price_dist_%_from_SMA_20": None,
+        "Price_dist_%_from_SMA_50": None,
+        "Price_dist_%_from_SMA_100": None,
+        "Price_dist_%_from_SMA_150": None,
+        "Price_dist_%_from_SMA_200": None,
+        "next_earnings_date": next_earnings_date,
+        "BUY/SELL signal": None,
+    }
+
+
+def _extract_ticker_frame(downloaded_data, ticker):
+    """
+    Safely extract a single ticker dataframe from batch-downloaded yfinance data.
+    Handles both MultiIndex and single-index cases.
+    """
+    if downloaded_data is None or downloaded_data.empty:
+        return pd.DataFrame()
+
+    try:
+        if isinstance(downloaded_data.columns, pd.MultiIndex):
+            level0 = downloaded_data.columns.get_level_values(0)
+
+            if ticker in level0:
+                data = downloaded_data[ticker].copy()
+            elif len(set(level0)) == 1:
+                # Sometimes a single ticker can still come back in MultiIndex form
+                data = downloaded_data.xs(level0[0], axis=1, level=0).copy()
+            else:
+                return pd.DataFrame()
+        else:
+            data = downloaded_data.copy()
+
+        if isinstance(data.columns, pd.MultiIndex):
+            data.columns = data.columns.get_level_values(0)
+
+        required_cols = ["Open", "High", "Low", "Close"]
+        if not all(col in data.columns for col in required_cols):
+            return pd.DataFrame()
+
+        return data.dropna(how="all")
+    except Exception:
+        return pd.DataFrame()
+
+
 # ---------- Earnings lookup ----------
 def _fetch_next_earnings_date_from_yahoo(symbol):
     try:
@@ -211,52 +276,39 @@ def get_next_earnings_date(symbol):
 def analyze_stocks(tickers, start_date=None, low_date=None):
     results = []
 
-    for ticker in tickers:
-        try:
-            data = yf.download(
-                ticker,
-                period="2y",
-                interval="1d",
-                progress=False,
-                auto_adjust=False,
-                group_by="column"
-            )
+    unique_tickers = []
+    seen = set()
+    for t in tickers:
+        t_clean = str(t).strip().upper()
+        if t_clean and t_clean not in seen:
+            unique_tickers.append(t_clean)
+            seen.add(t_clean)
 
+    if not unique_tickers:
+        return pd.DataFrame(results)
+
+    # Batch download all tickers once
+    try:
+        downloaded_data = yf.download(
+            unique_tickers,
+            period="2y",
+            interval="1d",
+            progress=False,
+            auto_adjust=False,
+            group_by="ticker",
+            threads=True
+        )
+    except Exception:
+        downloaded_data = pd.DataFrame()
+
+    for ticker in unique_tickers:
+        try:
+            data = _extract_ticker_frame(downloaded_data, ticker)
             next_earnings_date = get_next_earnings_date(ticker)
 
             if data.empty:
-                results.append({
-                    "symbol": ticker,
-                    "price": None,
-                    "ATR_14": None,
-                    "ATR_pct": None,
-                    "risk_level": "No Data",
-                    "Close_Start_Date": None,
-                    "Close_Low_Date": None,
-                    "Current_Price": None,
-                    "Change_%_Start_to_Today": None,
-                    "Change_%_Low_to_Today": None,
-                    "Strong_vs_SPY": None,
-                    "SMA_20": None,
-                    "SMA_50": None,
-                    "SMA_100": None,
-                    "SMA_150": None,
-                    "SMA_200": None,
-                    "RSI_14": None,
-                    "RSI_MA_14": None,
-                    "RSI_dist_%_from_RSI_MA_14": None,
-                    "Price_dist_%_from_SMA_20": None,
-                    "Price_dist_%_from_SMA_50": None,
-                    "Price_dist_%_from_SMA_100": None,
-                    "Price_dist_%_from_SMA_150": None,
-                    "Price_dist_%_from_SMA_200": None,
-                    "next_earnings_date": next_earnings_date,
-                    "BUY/SELL signal": None,
-                })
+                results.append(_empty_result_row(ticker, next_earnings_date=next_earnings_date, risk_level="No Data"))
                 continue
-
-            if isinstance(data.columns, pd.MultiIndex):
-                data.columns = data.columns.get_level_values(0)
 
             data["ATR_14"] = calculate_atr(data)
 
@@ -290,18 +342,11 @@ def analyze_stocks(tickers, start_date=None, low_date=None):
             current_price = round(float(price), 2) if pd.notna(price) else None
 
             if pd.isna(price) or pd.isna(atr) or float(price) == 0:
-                results.append({
-                    "symbol": ticker,
-                    "price": None,
-                    "ATR_14": None,
-                    "ATR_pct": None,
-                    "risk_level": "No Data",
+                row = _empty_result_row(ticker, next_earnings_date=next_earnings_date, risk_level="No Data")
+                row.update({
                     "Close_Start_Date": close_start,
                     "Close_Low_Date": close_low,
                     "Current_Price": current_price,
-                    "Change_%_Start_to_Today": None,
-                    "Change_%_Low_to_Today": None,
-                    "Strong_vs_SPY": None,
                     "SMA_20": sma_vals[20],
                     "SMA_50": sma_vals[50],
                     "SMA_100": sma_vals[100],
@@ -309,15 +354,8 @@ def analyze_stocks(tickers, start_date=None, low_date=None):
                     "SMA_200": sma_vals[200],
                     "RSI_14": round(float(rsi_14), 2) if pd.notna(rsi_14) else None,
                     "RSI_MA_14": round(float(rsi_ma_14), 2) if pd.notna(rsi_ma_14) else None,
-                    "RSI_dist_%_from_RSI_MA_14": None,
-                    "Price_dist_%_from_SMA_20": None,
-                    "Price_dist_%_from_SMA_50": None,
-                    "Price_dist_%_from_SMA_100": None,
-                    "Price_dist_%_from_SMA_150": None,
-                    "Price_dist_%_from_SMA_200": None,
-                    "next_earnings_date": next_earnings_date,
-                    "BUY/SELL signal": None,
                 })
+                results.append(row)
                 continue
 
             price = float(price)
@@ -366,34 +404,7 @@ def analyze_stocks(tickers, start_date=None, low_date=None):
             })
 
         except Exception:
-            results.append({
-                "symbol": ticker,
-                "price": None,
-                "ATR_14": None,
-                "ATR_pct": None,
-                "risk_level": "Error",
-                "Close_Start_Date": None,
-                "Close_Low_Date": None,
-                "Current_Price": None,
-                "Change_%_Start_to_Today": None,
-                "Change_%_Low_to_Today": None,
-                "Strong_vs_SPY": None,
-                "SMA_20": None,
-                "SMA_50": None,
-                "SMA_100": None,
-                "SMA_150": None,
-                "SMA_200": None,
-                "RSI_14": None,
-                "RSI_MA_14": None,
-                "RSI_dist_%_from_RSI_MA_14": None,
-                "Price_dist_%_from_SMA_20": None,
-                "Price_dist_%_from_SMA_50": None,
-                "Price_dist_%_from_SMA_100": None,
-                "Price_dist_%_from_SMA_150": None,
-                "Price_dist_%_from_SMA_200": None,
-                "next_earnings_date": "N/A",
-                "BUY/SELL signal": None,
-            })
+            results.append(_empty_result_row(ticker, next_earnings_date="N/A", risk_level="Error"))
 
     return pd.DataFrame(results)
 
