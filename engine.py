@@ -63,22 +63,34 @@ def to_scalar(x):
 
 
 def get_close_on_date(data, target_date):
+    """
+    Return the latest available close on or before target_date.
+    This avoids blanks when target_date is a weekend or market holiday.
+    """
     if target_date is None or data.empty:
         return None
 
-    target_date = pd.Timestamp(target_date).normalize()
-    matches = data.loc[data.index.normalize() == target_date]
-
-    if matches.empty:
+    try:
+        target_date = pd.Timestamp(target_date).normalize()
+    except Exception:
         return None
 
-    value = matches["Close"].iloc[-1]
-    value = to_scalar(value)
+    try:
+        data_sorted = data.sort_index().copy()
+        valid_rows = data_sorted.loc[data_sorted.index.normalize() <= target_date]
 
-    if pd.isna(value):
+        if valid_rows.empty:
+            return None
+
+        value = valid_rows["Close"].iloc[-1]
+        value = to_scalar(value)
+
+        if pd.isna(value):
+            return None
+
+        return round(float(value), 2)
+    except Exception:
         return None
-
-    return round(float(value), 2)
 
 
 def calc_pct_change(start_value, end_value):
@@ -149,7 +161,6 @@ def _extract_ticker_frame(downloaded_data, ticker):
             if ticker in level0:
                 data = downloaded_data[ticker].copy()
             elif len(set(level0)) == 1:
-                # Sometimes a single ticker can still come back in MultiIndex form
                 data = downloaded_data.xs(level0[0], axis=1, level=0).copy()
             else:
                 return pd.DataFrame()
